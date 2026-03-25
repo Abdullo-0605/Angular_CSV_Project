@@ -1,0 +1,23 @@
+<h1>CSV Waveform Plotter</h1>
+
+<input type="file" accept=".csv" (change)="onFileSelected($event)" />
+
+<p><strong>Status:</strong> {{ status() }}</p>
+<p><strong>File:</strong> {{ fileName() }}</p>
+
+@if (fileLoaded()) {
+  <h2>Chart</h2>
+  <div class="chart-wrapper">
+    <canvas #chartCanvas></canvas>
+  </div>
+
+  <details class="panel">
+    <summary>Raw CSV</summary>
+    <pre>{{ fileContent() }}</pre>
+  </details>
+
+  <details class="panel">
+    <summary>Parsed Chart Data</summary>
+    <pre>{{ parsedDataText() }}</pre>
+  </details>
+}
