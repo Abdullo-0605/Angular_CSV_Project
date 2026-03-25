@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>CSV Waveform Plotter - App Flowchart</title>
+  <style>
+    @media print {
+      body { margin: 0; }
+      .page-break { page-break-before: always; }
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: #fff;
+      color: #222;
+      padding: 30px 40px;
+      line-height: 1.5;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 26px;
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      text-align: center;
+      font-size: 13px;
+      color: #777;
+      margin-bottom: 30px;
+    }
+
+    /* ---- Flowchart layout ---- */
+    .flow {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+
+    .arrow {
+      width: 2px;
+      height: 28px;
+      background: #555;
+      position: relative;
+    }
+    .arrow::after {
+      content: "";
+      position: absolute;
+      bottom: -5px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-top: 7px solid #555;
+    }
+
+    .arrow-label {
+      font-size: 11px;
+      color: #888;
+      text-align: center;
+      margin: -2px 0;
+    }
+
+    /* --- Box shapes --- */
+    .box {
+      border: 2px solid #333;
+      padding: 12px 20px;
+      text-align: center;
+      max-width: 520px;
+      width: 100%;
+      font-size: 14px;
+    }
+
+    .box.start-end {
+      border-radius: 40px;
+      background: #e8f5e9;
+      font-weight: 700;
+    }
+
+    .box.process {
+      border-radius: 6px;
+      background: #e3f2fd;
+    }
+
+    .box.decision {
+      background: #fff8e1;
+      transform: rotate(0deg);
+      border-radius: 6px;
+      border-style: dashed;
+      position: relative;
+    }
+    .box.decision::before {
+      content: "DECISION";
+      position: absolute;
+      top: -10px;
+      left: 14px;
+      background: #fff8e1;
+      padding: 0 6px;
+      font-size: 9px;
+      font-weight: 700;
+      color: #f57f17;
+      letter-spacing: 1px;
+    }
+
+    .box.io {
+      border-radius: 6px;
+      background: #fce4ec;
+      border-color: #c62828;
+    }
+
+    .box b { font-weight: 700; }
+    .box code {
+      background: #f5f5f5;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 13px;
+    }
+
+    .box .detail {
+      font-size: 12px;
+      color: #555;
+      margin-top: 4px;
+    }
+
+    /* --- Section headers --- */
+    .section-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin: 36px 0 10px;
+      padding: 6px 14px;
+      background: #263238;
+      color: #fff;
+      border-radius: 4px;
+      text-align: center;
+      width: 100%;
+      max-width: 520px;
+    }
+
+    /* --- Legend --- */
+    .legend {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+      font-size: 13px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .legend-swatch {
+      width: 20px;
+      height: 20px;
+      border: 2px solid #333;
+      border-radius: 3px;
+    }
+
+    /* --- File tree & data table --- */
+    .file-tree {
+      font-size: 13px;
+      margin: 10px auto 20px;
+      max-width: 520px;
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .file-tree td, .file-tree th {
+      border: 1px solid #ccc;
+      padding: 5px 10px;
+      text-align: left;
+    }
+    .file-tree th {
+      background: #f0f0f0;
+      font-weight: 700;
+    }
+
+    .note {
+      max-width: 520px;
+      width: 100%;
+      margin: 4px auto;
+      font-size: 12px;
+      color: #555;
+      padding: 8px 12px;
+      background: #f9f9f9;
+      border-left: 3px solid #90a4ae;
+      border-radius: 2px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>CSV Waveform Plotter &mdash; Application Flowchart</h1>
+  <p class="subtitle">Angular 21 Standalone Component &bull; Chart.js &bull; Single-page app</p>
+
+  <!-- ============ LEGEND ============ -->
+  <div class="legend">
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:#e8f5e9;border-radius:40px;"></div> Start / End
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:#e3f2fd;"></div> Process
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:#fff8e1;border-style:dashed;"></div> Decision
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:#fce4ec;border-color:#c62828;"></div> Input / Output
+    </div>
+  </div>
+
+  <!-- ============ FILE OVERVIEW ============ -->
+  <div class="section-title">1 &mdash; Project File Map</div>
+
+  <table class="file-tree">
+    <tr><th>File</th><th>Role</th></tr>
+    <tr><td><code>index.html</code></td><td>Shell HTML, hosts <code>&lt;app-root&gt;</code></td></tr>
+    <tr><td><code>main.ts</code></td><td>Bootstraps <code>App</code> component with <code>appConfig</code></td></tr>
+    <tr><td><code>app.config.ts</code></td><td>Providers: Router, Client Hydration, Error Listeners</td></tr>
+    <tr><td><code>app.routes.ts</code></td><td>Route definitions (currently empty)</td></tr>
+    <tr><td><code>app.ts</code></td><td><b>Main component</b> &mdash; all logic lives here</td></tr>
+    <tr><td><code>app.html</code></td><td>Template: file input, status, chart canvas, raw data panels</td></tr>
+    <tr><td><code>app.css</code></td><td>Styles for chart wrapper, collapsible panels</td></tr>
+    <tr><td><code>app.spec.ts</code></td><td>Unit test (basic creation + title check)</td></tr>
+  </table>
+
+  <!-- ============ BOOTSTRAP FLOW ============ -->
+  <div class="section-title">2 &mdash; App Bootstrap Flow</div>
+
+  <div class="flow">
+    <div class="box start-end">Browser loads <code>index.html</code></div>
+    <div class="arrow"></div>
+
+    <div class="box process">
+      <b>main.ts</b><br>
+      Calls <code>bootstrapApplication(App, appConfig)</code>
+      <div class="detail">appConfig provides: Router, ClientHydration, ErrorListeners</div>
+    </div>
+    <div class="arrow"></div>
+
+    <div class="box process">
+      Angular creates <code>&lt;app-root&gt;</code> &rarr; renders <code>App</code> component
+    </div>
+    <div class="arrow"></div>
+
+    <div class="box io">
+      <b>Initial UI shown</b><br>
+      File input + Status: "No file selected"
+    </div>
+  </div>
+
+  <!-- ============ MAIN LOGIC FLOW ============ -->
+  <div class="section-title">3 &mdash; Main Logic: File &rarr; Parse &rarr; Chart</div>
+
+  <div class="flow">
+    <div class="box start-end">User clicks file input &amp; selects a <code>.csv</code> file</div>
+    <div class="arrow"></div>
+
+    <div class="box process">
+      <b>onFileSelected(event)</b> fires<br>
+      <div class="detail">Template: <code>(change)="onFileSelected($event)"</code></div>
+    </div>
+    <div class="arrow"></div>
+
+    <div class="box decision">
+      Is <code>file</code> present?<br>
+      <div class="detail">Checks <code>input.files?.[0]</code></div>
+    </div>
+    <div class="arrow-label">NO &rarr; set status "No file selected", set fileLoaded = false, RETURN</div>
+    <div class="arrow"></div>
+    <div class="arrow-label">YES &darr;</div>
+
+    <div class="box process">
+      Set <code>fileName</code> signal = file.name<br>
+      Set <code>status</code> signal = "Reading file..."<br>
+      Set <code>fileLoaded</code> signal = false
+    </div>
+    <div class="arrow"></div>
+
+    <div class="box process">
+      <b>Read file content</b><br>
+      <code>const text = await file.text()</code><br>
+      <div class="detail">Async: reads entire CSV as a string</div>
+    </div>
+    <div class="arrow"></div>
+
+    <div class="box process">
+      Store raw text &rarr; <code>fileContent</code> signal
+    </div>
+    <div class="arrow"></div>
+
+    <!-- PARSE CSV -->
+    <div class="box process" style="background:#e3f2fd;border-color:#1565c0;border-width:3px;">
+      <b>parseCsv(text)</b><br>
+      <div class="detail">
+        1. Split text by newlines (<code>\r?\n</code>)<br>
+        2. Trim each line, remove empty lines<br>
+        3. First line &rarr; <code>headers[]</code> (split by comma)<br>
+        4. Remaining lines &rarr; <code>rows[][]</code> (each value &rarr; <code>Number()</code>)
+      </div>
+    </div>
+    <div class="arrow"></div>
+    <div class="note"><b>Example:</b> headers = ["Time", "C1_Voltage", "L1_Current", "VDC1_Voltage Difference"] &mdash; rows = [[0, 2.12e-8, 0.021, 1], [0.1, 0.0008, 0.048, 1], ...]</div>
+    <div class="arrow"></div>
+
+    <!-- TRANSFORM -->
+    <div class="box process" style="background:#e3f2fd;border-color:#1565c0;border-width:3px;">
+      <b>transformToChartData(parsed)</b><br>
+      <div class="detail">
+        1. <code>labels</code> = first column of every row (Time values)<br>
+        2. For each remaining header, create a <code>dataset</code> object:<br>
+        &nbsp;&nbsp;&bull; <code>label</code> = header name<br>
+        &nbsp;&nbsp;&bull; <code>data</code> = that column's values from all rows<br>
+        3. Return <code>{ labels, datasets }</code>
+      </div>
+    </div>
+    <div class="arrow"></div>
+
+    <div class="box process">
+      Store chart JSON &rarr; <code>parsedDataText</code> signal<br>
+      Set <code>status</code> = "File loaded successfully"<br>
+      Set <code>fileLoaded</code> = true
+    </div>
+    <div class="arrow"></div>
+
+    <div class="box process">
+      Reset file input: <code>input.value = ''</code>
+      <div class="detail">Allows re-selecting the same file later</div>
+    </div>
+    <div class="arrow"></div>
+
+    <!-- RENDER CHART -->
+    <div class="box process" style="background:#bbdefb;border-color:#0d47a1;border-width:3px;">
+      <b>setTimeout &rarr; renderChart(chartData)</b><br>
+      <div class="detail">
+        Delayed by 0ms so Angular can render the canvas element first<br>
+        (because <code>@if (fileLoaded())</code> conditionally shows the canvas)
+      </div>
+    </div>
+    <div class="arrow"></div>
+
+    <div class="box decision">
+      Does <code>chartCanvas</code> ViewChild exist?
+    </div>
+    <div class="arrow-label">NO &rarr; RETURN (nothing to render on)</div>
+    <div class="arrow"></div>
+    <div class="arrow-label">YES &darr;</div>
+
+    <div class="box decision">
+      Does a previous <code>chart</code> instance exist?
+    </div>
+    <div class="arrow-label">YES &rarr; call <code>chart.destroy()</code> to clean up old chart</div>
+    <div class="arrow"></div>
+
+    <div class="box process">
+      Get 2D context from <code>&lt;canvas&gt;</code> element
+    </div>
+    <div class="arrow"></div>
+
+    <div class="box process" style="background:#bbdefb;border-color:#0d47a1;border-width:3px;">
+      <b>new Chart(ctx, config)</b><br>
+      <div class="detail">
+        &bull; Type: <code>line</code><br>
+        &bull; Datasets mapped with: borderWidth=2, pointRadius=0, tension=0.2<br>
+        &bull; X axis: linear, min=0, max=60 (hardcoded)<br>
+        &bull; Y axis: min=0, max=2.0 (hardcoded)<br>
+        &bull; responsive=true, maintainAspectRatio=false
+      </div>
+    </div>
+    <div class="arrow"></div>
+
+    <div class="box io">
+      <b>Chart rendered on screen</b>
+    </div>
+  </div>
+
+  <!-- ============ TEMPLATE RENDERING ============ -->
+  <div class="page-break"></div>
+  <div class="section-title">4 &mdash; Template Rendering Logic</div>
+
+  <div class="flow">
+    <div class="box start-end">Template <code>app.html</code> evaluates</div>
+    <div class="arrow"></div>
+
+    <div class="box io">
+      Always visible:<br>
+      <code>&lt;h1&gt;</code> title + file <code>&lt;input&gt;</code> + status &amp; filename text
+    </div>
+    <div class="arrow"></div>
+
+    <div class="box decision">
+      <code>@if (fileLoaded())</code> &mdash; is fileLoaded signal true?
+    </div>
+    <div class="arrow-label">NO &rarr; nothing else shown</div>
+    <div class="arrow"></div>
+    <div class="arrow-label">YES &darr;</div>
+
+    <div class="box io">
+      <b>Show chart section:</b><br>
+      <code>&lt;canvas #chartCanvas&gt;</code> inside <code>.chart-wrapper</code> (500px tall)
+    </div>
+    <div class="arrow"></div>
+
+    <div class="box io">
+      <b>Collapsible "Raw CSV" panel</b><br>
+      <code>&lt;details&gt;</code> with <code>&lt;pre&gt;{{ fileContent() }}&lt;/pre&gt;</code>
+    </div>
+    <div class="arrow"></div>
+
+    <div class="box io">
+      <b>Collapsible "Parsed Chart Data" panel</b><br>
+      <code>&lt;details&gt;</code> with <code>&lt;pre&gt;{{ parsedDataText() }}&lt;/pre&gt;</code>
+    </div>
+  </div>
+
+  <!-- ============ SIGNAL STATE ============ -->
+  <div class="section-title">5 &mdash; Reactive State (Signals)</div>
+
+  <table class="file-tree">
+    <tr><th>Signal</th><th>Type</th><th>Initial Value</th><th>Purpose</th></tr>
+    <tr><td><code>fileName</code></td><td>string</td><td><code>''</code></td><td>Name of selected CSV file</td></tr>
+    <tr><td><code>fileContent</code></td><td>string</td><td><code>''</code></td><td>Raw CSV text for display</td></tr>
+    <tr><td><code>parsedDataText</code></td><td>string</td><td><code>''</code></td><td>JSON string of chart data for display</td></tr>
+    <tr><td><code>status</code></td><td>string</td><td><code>'No file selected'</code></td><td>User feedback message</td></tr>
+    <tr><td><code>fileLoaded</code></td><td>boolean</td><td><code>false</code></td><td>Controls visibility of chart &amp; data panels</td></tr>
+  </table>
+
+  <div class="note" style="margin-top:14px;">
+    <b>Private property:</b> <code>chart: Chart | null = null</code> &mdash; holds the current Chart.js instance so it can be destroyed before creating a new one.
+  </div>
+
+  <!-- ============ DATA FLOW SUMMARY ============ -->
+  <div class="section-title">6 &mdash; Data Flow Summary (one line)</div>
+
+  <div style="text-align:center;font-size:15px;padding:14px;background:#f5f5f5;border:1px solid #ccc;border-radius:6px;max-width:520px;margin:10px auto;">
+    <b>CSV File</b> &rarr; <code>file.text()</code> &rarr; <b>Raw String</b> &rarr; <code>parseCsv()</code> &rarr; <b>{headers, rows}</b> &rarr; <code>transformToChartData()</code> &rarr; <b>{labels, datasets}</b> &rarr; <code>renderChart()</code> &rarr; <b>Chart.js Line Chart</b>
+  </div>
+
+</body>
+</html>
