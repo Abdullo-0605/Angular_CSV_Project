@@ -14,10 +14,10 @@ canvas {
 
 .panel {
   margin-top: 12px;
-  border: 1px solid #ddd;
+  border: 1px solid #ffd8d8;
   border-radius: 8px;
   padding: 8px 12px;
-  background: #fafafa;
+  background: #ffe9e9;
 }
 
 .panel summary {

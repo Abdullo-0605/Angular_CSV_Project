@@ -1,23 +1,26 @@
 import { Component, ElementRef, signal, ViewChild } from '@angular/core';
 import Chart from 'chart.js/auto';
 
-interface ParsedCsv {
+interface ParsedCsv { //object format for file
   headers: string[];
   rows: number[][];
 }
 
-interface ChartData {
+interface ChartData { //format for chart
   labels: number[];
   datasets: { label: string; data: number[] }[];
   xAxisLabel: string;
 }
 
+// (FRONTEND) - When Index.html runs, this is the first thing that loads
 @Component({
   selector: 'app-root',
   standalone: true,
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
+
+// BACKEND CLASS (Logic)
 export class App {
   @ViewChild('chartCanvas') chartCanvas!: ElementRef<HTMLCanvasElement>;
 
@@ -29,6 +32,7 @@ export class App {
 
   private chart: Chart | null = null;
 
+  // START OF ACTIVE FUNCTIONS (when user uploads a file)
   async onFileSelected(event: Event) {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
@@ -94,6 +98,7 @@ export class App {
     return { labels, datasets, xAxisLabel: parsed.headers[0] };
   }
 
+  // MAKES THE CHART VISIBLE
   renderChart(chartData: ChartData) {
     if (!this.chartCanvas) return;
 
@@ -101,19 +106,24 @@ export class App {
       this.chart.destroy();
     }
 
+    // creates canvas element (to make chart later)
     const ctx = this.chartCanvas.nativeElement.getContext('2d');
     if (!ctx) return;
 
-    const labels = chartData.labels;
-    const datasets = chartData.datasets;
+    // set proper variables
+    const labels = chartData.labels; //x axis values
+    const datasets = chartData.datasets; //each lines values (c1_voltage, ...)
 
-    const minX = Math.min(...labels);
+    // limits the chart for the data (helps with scaling)
+    const minX = Math.min(...labels); 
     const maxX = Math.max(...labels);
     const minY = Math.min(...datasets.flatMap(dataset => dataset.data));
     const maxY = Math.max(...datasets.flatMap(dataset => dataset.data));
 
+    // IMPORTANT: builds the chart
     this.chart = new Chart(ctx, {
       type: 'line',
+      // makes each line:...
       data: {
         labels,
         datasets: datasets.map(dataset => ({
@@ -125,10 +135,10 @@ export class App {
         }))
       },
       options: {
-        responsive: true,
+        responsive: true, //resizes when neeeded
         maintainAspectRatio: false,
         plugins: {
-          legend: {
+          legend: { // this is why legend shows
             display: true
           }
         },
