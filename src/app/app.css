@@ -1,17 +1,92 @@
-.chart-wrapper {
-  width: 100%;
-  height: 500px;
-  border: 1px solid #ccc;
-  margin-top: 16px;
+/* --- LAYOUT --- */
+.app-container {
+  padding: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  min-height: 100vh;
+}
+
+h1 {
   margin-bottom: 16px;
 }
 
-canvas {
-  display: block;
-  width: 100% !important;
-  height: 100% !important;
+/* --- CONTROLS ROW --- */
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
+.btn-display {
+  padding: 8px 20px;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-display:hover {
+  background: #1d4ed8;
+}
+
+/* --- STATUS --- */
+.info-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.info-row p {
+  margin: 0;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.status-N\/A {
+  background: #e5e7eb;
+  color: #6b7280;
+}
+
+.status-Ready {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-Error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.status-message {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+/* --- ERROR BANNER --- */
+.error-banner {
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  color: #991b1b;
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-weight: 500;
+}
+
+/* --- PANELS --- */
 .panel {
   margin-top: 12px;
   border: 1px solid #ffd8d8;
@@ -31,17 +106,240 @@ canvas {
 }
 
 .panel summary::before {
-  content: "▸ ";
+  content: "\25B8 ";
   display: inline-block;
   transition: transform 0.15s ease;
 }
 
 .panel[open] summary::before {
-  content: "▾ ";
+  content: "\25BE ";
 }
 
 .panel pre {
   margin-top: 12px;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+/* --- CHART OVERLAY BACKDROP --- */
+.chart-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 999;
+}
+
+/* --- MINIMIZED BAR --- */
+.minimized-bar {
+  position: fixed;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1e293b;
+  color: #fff;
+  padding: 8px 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  z-index: 1001;
+  font-size: 13px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.minimized-bar:hover {
+  background: #334155;
+}
+
+/* --- CHART OVERLAY WINDOW --- */
+.chart-overlay {
+  position: fixed;
+  z-index: 1000;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  user-select: none;
+}
+
+.chart-overlay.maximized {
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  border-radius: 0;
+}
+
+/* --- TITLE BAR --- */
+.title-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #1e293b;
+  color: #fff;
+  padding: 6px 12px;
+  cursor: grab;
+  flex-shrink: 0;
+}
+
+.title-bar:active {
+  cursor: grabbing;
+}
+
+.title-text {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.window-controls {
+  display: flex;
+  gap: 4px;
+}
+
+.win-btn {
+  background: rgba(255,255,255,0.15);
+  border: none;
+  color: #fff;
+  width: 28px;
+  height: 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.1s;
+}
+
+.win-btn:hover {
+  background: rgba(255,255,255,0.3);
+}
+
+.close-btn:hover {
+  background: #ef4444;
+}
+
+/* --- CUSTOM LEGEND --- */
+.legend-wrapper {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+  height: 52px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  gap: 4px 10px;
+  padding: 6px 12px;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+  align-content: flex-start;
+}
+
+.legend-wrapper::-webkit-scrollbar {
+  height: 4px;
+}
+
+.legend-wrapper::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.1s;
+}
+
+.legend-item:hover {
+  background: #f1f5f9;
+}
+
+.legend-item.highlighted {
+  background: #dbeafe;
+  font-weight: 700;
+}
+
+.legend-color {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* --- CHART BODY --- */
+.chart-body {
+  flex: 1;
+  min-height: 0;
+  padding: 8px;
+  position: relative;
+}
+
+.chart-body canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.chart-footer {
+  text-align: center;
+  padding: 4px 8px;
+  background: #f8fafc;
+  border-top: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
+.chart-footer small {
+  font-size: 11px;
+  color: #64748b;
+}
+
+/* --- RESIZE HANDLES --- */
+.resize-handle {
+  position: absolute;
+  z-index: 10;
+}
+
+.resize-handle.top {
+  top: 0; left: 6px; right: 6px; height: 5px;
+  cursor: n-resize;
+}
+
+.resize-handle.bottom {
+  bottom: 0; left: 6px; right: 6px; height: 5px;
+  cursor: s-resize;
+}
+
+.resize-handle.left {
+  left: 0; top: 6px; bottom: 6px; width: 5px;
+  cursor: w-resize;
+}
+
+.resize-handle.right {
+  right: 0; top: 6px; bottom: 6px; width: 5px;
+  cursor: e-resize;
+}
+
+.resize-handle.top-left {
+  top: 0; left: 0; width: 10px; height: 10px;
+  cursor: nw-resize;
+}
+
+.resize-handle.top-right {
+  top: 0; right: 0; width: 10px; height: 10px;
+  cursor: ne-resize;
+}
+
+.resize-handle.bottom-left {
+  bottom: 0; left: 0; width: 10px; height: 10px;
+  cursor: sw-resize;
+}
+
+.resize-handle.bottom-right {
+  bottom: 0; right: 0; width: 10px; height: 10px;
+  cursor: se-resize;
 }

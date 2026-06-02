@@ -1,23 +1,104 @@
-<h1>CSV Waveform Plotter</h1>
+<div class="app-container" (mousemove)="onMouseMove($event)" (mouseup)="onMouseUp()">
+  <h1>CSV Waveform Plotter</h1>
 
-<input type="file" accept=".csv" (change)="onFileSelected($event)" />
-
-<p><strong>Status:</strong> {{ status() }}</p>
-<p><strong>File:</strong> {{ fileName() }}</p>
-
-@if (fileLoaded()) {
-  <h2>Chart</h2>
-  <div class="chart-wrapper">
-    <canvas #chartCanvas></canvas>
+  <div class="controls">
+    <input type="file" accept=".csv" (change)="onFileSelected($event)" />
+    <button class="btn-display" (click)="onDisplay()">Display</button>
   </div>
 
-  <details class="panel">
-    <summary>Raw CSV</summary>
-    <pre>{{ fileContent() }}</pre>
-  </details>
+  <div class="info-row">
+    <p><strong>Status:</strong>
+      <span [class]="'status-badge status-' + status()">{{ status() }}</span>
+    </p>
+    <p><strong>File:</strong> {{ fileName() || 'None' }}</p>
+    <p class="status-message">{{ statusMessage() }}</p>
+  </div>
 
-  <details class="panel">
-    <summary>Parsed Chart Data</summary>
-    <pre>{{ parsedDataText() }}</pre>
-  </details>
-}
+  @if (errorMessage()) {
+    <div class="error-banner">{{ errorMessage() }}</div>
+  }
+
+  @if (fileLoaded()) {
+    <details class="panel">
+      <summary>Raw CSV</summary>
+      <pre>{{ fileContent() }}</pre>
+    </details>
+
+    <details class="panel">
+      <summary>Parsed Chart Data</summary>
+      <pre>{{ parsedDataText() }}</pre>
+    </details>
+  }
+
+  <!-- CHART OVERLAY WINDOW -->
+  @if (chartVisible()) {
+    <!-- backdrop to dim background (hidden when minimized) -->
+    @if (windowState() !== 'minimized') {
+      <div class="chart-backdrop"></div>
+    }
+
+    @if (windowState() === 'minimized') {
+      <!-- minimized taskbar item -->
+      <div class="minimized-bar" (click)="restoreChart()">
+        <span>Chart — click to restore</span>
+      </div>
+    } @else {
+      <div
+        class="chart-overlay"
+        [class.maximized]="windowState() === 'maximized'"
+        [style.width.px]="windowState() === 'maximized' ? null : windowWidth"
+        [style.height.px]="windowState() === 'maximized' ? null : windowHeight"
+        [style.top.px]="windowState() === 'maximized' ? null : windowTop"
+        [style.left.px]="windowState() === 'maximized' ? null : windowLeft"
+      >
+        <!-- resize handles -->
+        <div class="resize-handle top" (mousedown)="onResizeStart($event, 'top')"></div>
+        <div class="resize-handle bottom" (mousedown)="onResizeStart($event, 'bottom')"></div>
+        <div class="resize-handle left" (mousedown)="onResizeStart($event, 'left')"></div>
+        <div class="resize-handle right" (mousedown)="onResizeStart($event, 'right')"></div>
+        <div class="resize-handle top-left" (mousedown)="onResizeStart($event, 'top-left')"></div>
+        <div class="resize-handle top-right" (mousedown)="onResizeStart($event, 'top-right')"></div>
+        <div class="resize-handle bottom-left" (mousedown)="onResizeStart($event, 'bottom-left')"></div>
+        <div class="resize-handle bottom-right" (mousedown)="onResizeStart($event, 'bottom-right')"></div>
+
+        <!-- title bar (drag area) -->
+        <div class="title-bar" (mousedown)="onTitleBarMouseDown($event)">
+          <span class="title-text">Waveform Chart</span>
+          <div class="window-controls">
+            <button class="win-btn" title="Reset Zoom" (click)="resetZoom()">&#8634;</button>
+            <button class="win-btn" title="Minimize" (click)="minimizeChart()">&#8211;</button>
+            <button class="win-btn" title="Maximize" (click)="maximizeChart()">&#9744;</button>
+            <button class="win-btn" title="Fullscreen" (click)="fullscreenChart()">&#9974;</button>
+            <button class="win-btn close-btn" title="Close" (click)="closeChart()">&#10005;</button>
+          </div>
+        </div>
+
+        <!-- custom legend (scrollable, 2 rows) -->
+        <div class="legend-wrapper" #legendContainer>
+          @for (item of legendItems; track item.index) {
+            <span
+              class="legend-item"
+              [attr.data-legend-index]="item.index"
+              [class.highlighted]="highlightedIndex() === item.index"
+              (click)="onLegendClick(item.index)"
+            >
+              <span class="legend-color" [style.background]="item.color"></span>
+              {{ item.label }}
+            </span>
+          }
+        </div>
+
+        <!-- chart canvas area -->
+        <div class="chart-body"
+          (mousemove)="onChartMouseMove()"
+          (mouseleave)="onChartMouseLeave()">
+          <canvas #chartCanvas></canvas>
+        </div>
+
+        <div class="chart-footer">
+          <small>Scroll to zoom | Shift+Drag to box-zoom | Drag to pan | Click line to highlight</small>
+        </div>
+      </div>
+    }
+  }
+</div>
