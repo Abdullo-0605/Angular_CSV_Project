@@ -1,5 +1,5 @@
 {
-  "name": "csv-waveform-plotter",
+  "name": "datalogger-dataplotter",
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
@@ -7,7 +7,7 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "serve:ssr:csv-waveform-plotter": "node dist/csv-waveform-plotter/server/server.mjs"
+    "serve:ssr:datalogger-dataplotter": "node dist/datalogger-dataplotter/server/server.mjs"
   },
   "private": true,
   "packageManager": "npm@11.9.0",

@@ -1,5 +1,5 @@
 /* --- LAYOUT --- */
-.app-container {
+.dataplotter-container {
   padding: 20px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   min-height: 100vh;
@@ -9,15 +9,15 @@ h1 {
   margin-bottom: 16px;
 }
 
-/* --- CONTROLS ROW --- */
-.controls {
+/* --- DATAPLOTTER CONTROLS ROW --- */
+.dataplotter-controls {
   display: flex;
   align-items: center;
   gap: 12px;
   margin-bottom: 16px;
 }
 
-.btn-display {
+.btn-display-plotter {
   padding: 8px 20px;
   background: #2563eb;
   color: #fff;
@@ -29,12 +29,12 @@ h1 {
   transition: background 0.15s;
 }
 
-.btn-display:hover {
+.btn-display-plotter:hover {
   background: #1d4ed8;
 }
 
-/* --- STATUS --- */
-.info-row {
+/* --- DATAPLOTTER STATUS --- */
+.dataplotter-info-row {
   display: flex;
   align-items: center;
   gap: 20px;
@@ -42,7 +42,7 @@ h1 {
   margin-bottom: 12px;
 }
 
-.info-row p {
+.dataplotter-info-row p {
   margin: 0;
 }
 
@@ -70,13 +70,13 @@ h1 {
   color: #991b1b;
 }
 
-.status-message {
+.dataplotter-status-message {
   font-size: 13px;
   color: #6b7280;
 }
 
-/* --- ERROR BANNER --- */
-.error-banner {
+/* --- DATAPLOTTER ERROR BANNER --- */
+.dataplotter-error-banner {
   background: #fef2f2;
   border: 1px solid #fca5a5;
   color: #991b1b;
@@ -86,8 +86,8 @@ h1 {
   font-weight: 500;
 }
 
-/* --- PANELS --- */
-.panel {
+/* --- DATAPLOTTER PANELS --- */
+.dataplotter-panel {
   margin-top: 12px;
   border: 1px solid #ffd8d8;
   border-radius: 8px;
@@ -95,42 +95,42 @@ h1 {
   background: #ffe9e9;
 }
 
-.panel summary {
+.dataplotter-panel summary {
   cursor: pointer;
   font-weight: 600;
   list-style: none;
 }
 
-.panel summary::-webkit-details-marker {
+.dataplotter-panel summary::-webkit-details-marker {
   display: none;
 }
 
-.panel summary::before {
+.dataplotter-panel summary::before {
   content: "\25B8 ";
   display: inline-block;
   transition: transform 0.15s ease;
 }
 
-.panel[open] summary::before {
+.dataplotter-panel[open] summary::before {
   content: "\25BE ";
 }
 
-.panel pre {
+.dataplotter-panel pre {
   margin-top: 12px;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
-/* --- CHART OVERLAY BACKDROP --- */
-.chart-backdrop {
+/* --- DATAPLOTTER BACKDROP --- */
+.dataplotter-backdrop {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.3);
   z-index: 999;
 }
 
-/* --- MINIMIZED BAR --- */
-.minimized-bar {
+/* --- DATAPLOTTER MINIMIZED BAR --- */
+.dataplotter-minimized-bar {
   position: fixed;
   bottom: 12px;
   left: 50%;
@@ -145,12 +145,12 @@ h1 {
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
 }
 
-.minimized-bar:hover {
+.dataplotter-minimized-bar:hover {
   background: #334155;
 }
 
-/* --- CHART OVERLAY WINDOW --- */
-.chart-overlay {
+/* --- DATAPLOTTER OVERLAY WINDOW --- */
+.dataplotter-overlay {
   position: fixed;
   z-index: 1000;
   background: #fff;
@@ -162,7 +162,7 @@ h1 {
   user-select: none;
 }
 
-.chart-overlay.maximized {
+.dataplotter-overlay.maximized {
   top: 0 !important;
   left: 0 !important;
   width: 100vw !important;
@@ -170,8 +170,8 @@ h1 {
   border-radius: 0;
 }
 
-/* --- TITLE BAR --- */
-.title-bar {
+/* --- DATAPLOTTER TITLE BAR --- */
+.dataplotter-title-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -182,16 +182,16 @@ h1 {
   flex-shrink: 0;
 }
 
-.title-bar:active {
+.dataplotter-title-bar:active {
   cursor: grabbing;
 }
 
-.title-text {
+.dataplotter-title-text {
   font-size: 13px;
   font-weight: 600;
 }
 
-.window-controls {
+.dataplotter-window-controls {
   display: flex;
   gap: 4px;
 }
@@ -219,8 +219,8 @@ h1 {
   background: #ef4444;
 }
 
-/* --- CUSTOM LEGEND --- */
-.legend-wrapper {
+/* --- DATAPLOTTER LEGEND --- */
+.dataplotter-legend-wrapper {
   display: flex;
   flex-direction: column;
   flex-wrap: wrap;
@@ -234,16 +234,16 @@ h1 {
   align-content: flex-start;
 }
 
-.legend-wrapper::-webkit-scrollbar {
+.dataplotter-legend-wrapper::-webkit-scrollbar {
   height: 4px;
 }
 
-.legend-wrapper::-webkit-scrollbar-thumb {
+.dataplotter-legend-wrapper::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 4px;
 }
 
-.legend-item {
+.dataplotter-legend-item {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -255,37 +255,37 @@ h1 {
   transition: background 0.1s;
 }
 
-.legend-item:hover {
+.dataplotter-legend-item:hover {
   background: #f1f5f9;
 }
 
-.legend-item.highlighted {
+.dataplotter-legend-item.highlighted {
   background: #dbeafe;
   font-weight: 700;
 }
 
-.legend-color {
+.dataplotter-legend-color {
   width: 10px;
   height: 10px;
   border-radius: 2px;
   flex-shrink: 0;
 }
 
-/* --- CHART BODY --- */
-.chart-body {
+/* --- DATAPLOTTER CANVAS BODY --- */
+.dataplotter-canvas-body {
   flex: 1;
   min-height: 0;
   padding: 8px;
   position: relative;
 }
 
-.chart-body canvas {
+.dataplotter-canvas-body canvas {
   display: block;
   width: 100% !important;
   height: 100% !important;
 }
 
-.chart-footer {
+.dataplotter-footer {
   text-align: center;
   padding: 4px 8px;
   background: #f8fafc;
@@ -293,7 +293,7 @@ h1 {
   flex-shrink: 0;
 }
 
-.chart-footer small {
+.dataplotter-footer small {
   font-size: 11px;
   color: #64748b;
 }

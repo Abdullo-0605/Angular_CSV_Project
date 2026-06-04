@@ -7,7 +7,7 @@
   },
   "newProjectRoot": "projects",
   "projects": {
-    "csv-waveform-plotter": {
+    "datalogger-dataplotter": {
       "projectType": "application",
       "schematics": {},
       "root": "",
@@ -60,10 +60,10 @@
           "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "csv-waveform-plotter:build:production"
+              "buildTarget": "datalogger-dataplotter:build:production"
             },
             "development": {
-              "buildTarget": "csv-waveform-plotter:build:development"
+              "buildTarget": "datalogger-dataplotter:build:development"
             }
           },
           "defaultConfiguration": "development"

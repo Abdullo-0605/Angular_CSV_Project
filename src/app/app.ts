@@ -4,12 +4,12 @@ import zoomPlugin from 'chartjs-plugin-zoom';
 
 Chart.register(zoomPlugin);
 
-interface ParsedCsv { //object format for file
+interface ParsedPlotterData { // structured format for imported data file
   headers: string[];
   rows: number[][];
 }
 
-interface ChartData { //format for chart
+interface PlotterWaveformData { // format for waveform rendering
   labels: number[];
   datasets: { label: string; data: number[] }[];
   xAxisLabel: string;
@@ -17,33 +17,33 @@ interface ChartData { //format for chart
 
 // (FRONTEND) - When Index.html runs, this is the first thing that loads
 @Component({
-  selector: 'app-root',
+  selector: 'datalogger-dataplotter',
   standalone: true,
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
 
-// BACKEND CLASS (Logic)
-export class App implements OnDestroy {
-  private onFullscreenChange = () => this.handleFullscreenChange();
-  @ViewChild('chartCanvas') chartCanvas!: ElementRef<HTMLCanvasElement>;
-  @ViewChild('legendContainer') legendContainer!: ElementRef<HTMLDivElement>;
+// BACKEND CLASS — DataPlotter (part of DataLogger module)
+export class DataPlotter implements OnDestroy {
+  private onPlotterFullscreenExit = () => this.handlePlotterFullscreenExit();
+  @ViewChild('plotterCanvas') plotterCanvas!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('plotterLegendContainer') plotterLegendContainer!: ElementRef<HTMLDivElement>;
 
-  fileName = signal('');
-  fileContent = signal('');
-  parsedDataText = signal('');
-  status = signal<'N/A' | 'Ready' | 'Error'>('N/A');
-  statusMessage = signal('No data uploaded');
-  fileLoaded = signal(false);
-  chartVisible = signal(false);
-  errorMessage = signal('');
+  plotterFileName = signal('');
+  plotterFileContent = signal('');
+  parsedPlotterText = signal('');
+  plotterStatus = signal<'N/A' | 'Ready' | 'Error'>('N/A');
+  plotterStatusMessage = signal('No data uploaded');
+  plotterDataLoaded = signal(false);
+  plotterVisible = signal(false);
+  plotterErrorMessage = signal('');
 
-  // overlay window state
-  windowState = signal<'normal' | 'minimized' | 'maximized'>('normal');
-  windowWidth = 900;
-  windowHeight = 550;
-  windowTop = 80;
-  windowLeft = 100;
+  // dataplotter overlay window state
+  plotterWindowState = signal<'normal' | 'minimized' | 'maximized'>('normal');
+  plotterWidth = 900;
+  plotterHeight = 550;
+  plotterTop = 80;
+  plotterLeft = 100;
 
   // dragging state
   private dragging = false;
@@ -60,19 +60,19 @@ export class App implements OnDestroy {
   private resizeStartTop = 0;
   private resizeStartLeft = 0;
 
-  // chart internals
-  private chart: Chart | null = null;
-  private chartData: ChartData | null = null;
-  highlightedIndex = signal<number | null>(null);
-  legendItems: { label: string; color: string; index: number }[] = [];
+  // dataplotter internals
+  private plotterChart: Chart | null = null;
+  private plotterData: PlotterWaveformData | null = null;
+  highlightedTraceIndex = signal<number | null>(null);
+  plotterLegendItems: { label: string; color: string; index: number }[] = [];
 
-  // tooltip hold timer
-  private hoverTimer: any = null;
-  private tooltipEnabled = false;
-  private isFullscreen = false;
+  // dataplotter tooltip hold timer
+  private plotterHoverTimer: any = null;
+  private plotterTooltipActive = false;
+  private isPlotterFullscreen = false;
 
-  // START OF ACTIVE FUNCTIONS (when user uploads a file)
-  async onFileSelected(event: Event) {
+  // ACTIVE FUNCTIONS — triggered when user imports a data file
+  async onPlotterFileSelected(event: Event) {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
 
@@ -80,171 +80,171 @@ export class App implements OnDestroy {
       return;
     }
 
-    this.fileName.set(file.name);
-    this.statusMessage.set('Reading file...');
-    this.errorMessage.set('');
+    this.plotterFileName.set(file.name);
+    this.plotterStatusMessage.set('Reading data...');
+    this.plotterErrorMessage.set('');
 
     const text = await file.text();
-    this.fileContent.set(text);
+    this.plotterFileContent.set(text);
 
-    const parsed = this.parseCsv(text);
-    const chartData = this.transformToChartData(parsed);
+    const parsed = this.parsePlotterCsv(text);
+    const plotData = this.transformToPlotterData(parsed);
 
-    this.parsedDataText.set(JSON.stringify(chartData, null, 2));
-    this.chartData = chartData;
-    this.status.set('Ready');
-    this.statusMessage.set('File loaded — press Display to view chart');
-    this.fileLoaded.set(true);
+    this.parsedPlotterText.set(JSON.stringify(plotData, null, 2));
+    this.plotterData = plotData;
+    this.plotterStatus.set('Ready');
+    this.plotterStatusMessage.set('Data loaded — press Display to view waveform');
+    this.plotterDataLoaded.set(true);
 
     input.value = '';
   }
 
   // triggered by the Display button
-  onDisplay() {
-    if (!this.chartData || this.chartData.datasets.length === 0) {
-      this.errorMessage.set('No data to display. Please upload a CSV file first.');
-      this.status.set('Error');
+  displayPlotterWaveform() {
+    if (!this.plotterData || this.plotterData.datasets.length === 0) {
+      this.plotterErrorMessage.set('No data to display. Please upload a CSV file first.');
+      this.plotterStatus.set('Error');
       return;
     }
 
-    this.errorMessage.set('');
-    this.chartVisible.set(true);
-    this.windowState.set('normal');
+    this.plotterErrorMessage.set('');
+    this.plotterVisible.set(true);
+    this.plotterWindowState.set('normal');
 
     setTimeout(() => {
-      this.renderChart(this.chartData!);
+      this.renderPlotterWaveform(this.plotterData!);
     }, 0);
   }
 
-  // close the chart overlay
-  closeChart() {
-    this.chartVisible.set(false);
-    if (this.chart) {
-      this.chart.destroy();
-      this.chart = null;
+  // close the dataplotter overlay
+  closePlotter() {
+    this.plotterVisible.set(false);
+    if (this.plotterChart) {
+      this.plotterChart.destroy();
+      this.plotterChart = null;
     }
   }
 
-  minimizeChart() {
-    this.windowState.set('minimized');
+  minimizePlotter() {
+    this.plotterWindowState.set('minimized');
   }
 
-  restoreChart() {
-    this.windowState.set('normal');
-    setTimeout(() => this.chart?.resize(), 50);
+  restorePlotter() {
+    this.plotterWindowState.set('normal');
+    setTimeout(() => this.plotterChart?.resize(), 50);
   }
 
-  maximizeChart() {
-    if (this.windowState() === 'maximized') {
-      this.windowState.set('normal');
+  maximizePlotter() {
+    if (this.plotterWindowState() === 'maximized') {
+      this.plotterWindowState.set('normal');
     } else {
-      this.windowState.set('maximized');
+      this.plotterWindowState.set('maximized');
     }
-    setTimeout(() => this.chart?.resize(), 50);
+    setTimeout(() => this.plotterChart?.resize(), 50);
   }
 
-  fullscreenChart() {
+  fullscreenPlotter() {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen();
-      document.addEventListener('fullscreenchange', this.onFullscreenChange);
-      this.isFullscreen = true;
-      this.windowState.set('maximized');
+      document.addEventListener('fullscreenchange', this.onPlotterFullscreenExit);
+      this.isPlotterFullscreen = true;
+      this.plotterWindowState.set('maximized');
     } else {
       document.exitFullscreen();
     }
   }
 
-  private handleFullscreenChange() {
-    if (!document.fullscreenElement && this.isFullscreen) {
-      this.isFullscreen = false;
-      this.windowState.set('normal');
-      document.removeEventListener('fullscreenchange', this.onFullscreenChange);
-      setTimeout(() => this.chart?.resize(), 50);
+  private handlePlotterFullscreenExit() {
+    if (!document.fullscreenElement && this.isPlotterFullscreen) {
+      this.isPlotterFullscreen = false;
+      this.plotterWindowState.set('normal');
+      document.removeEventListener('fullscreenchange', this.onPlotterFullscreenExit);
+      setTimeout(() => this.plotterChart?.resize(), 50);
     }
   }
 
   ngOnDestroy() {
-    document.removeEventListener('fullscreenchange', this.onFullscreenChange);
+    document.removeEventListener('fullscreenchange', this.onPlotterFullscreenExit);
   }
 
-  // --- DRAG LOGIC ---
-  onTitleBarMouseDown(event: MouseEvent) {
-    if (this.windowState() === 'maximized') return;
+  // --- PLOTTER DRAG LOGIC ---
+  onPlotterTitleBarMouseDown(event: MouseEvent) {
+    if (this.plotterWindowState() === 'maximized') return;
     this.dragging = true;
-    this.dragOffsetX = event.clientX - this.windowLeft;
-    this.dragOffsetY = event.clientY - this.windowTop;
+    this.dragOffsetX = event.clientX - this.plotterLeft;
+    this.dragOffsetY = event.clientY - this.plotterTop;
     event.preventDefault();
   }
 
-  onMouseMove(event: MouseEvent) {
+  onPlotterMouseMove(event: MouseEvent) {
     if (this.dragging) {
-      this.windowLeft = event.clientX - this.dragOffsetX;
-      this.windowTop = event.clientY - this.dragOffsetY;
+      this.plotterLeft = event.clientX - this.dragOffsetX;
+      this.plotterTop = event.clientY - this.dragOffsetY;
     }
     if (this.resizing) {
-      this.handleResize(event);
+      this.handlePlotterResize(event);
     }
   }
 
-  onMouseUp() {
+  onPlotterMouseUp() {
     this.dragging = false;
     if (this.resizing) {
       this.resizing = false;
-      setTimeout(() => this.chart?.resize(), 0);
+      setTimeout(() => this.plotterChart?.resize(), 0);
     }
   }
 
-  // --- RESIZE LOGIC ---
-  onResizeStart(event: MouseEvent, edge: string) {
-    if (this.windowState() === 'maximized') return;
+  // --- PLOTTER RESIZE LOGIC ---
+  onPlotterResizeStart(event: MouseEvent, edge: string) {
+    if (this.plotterWindowState() === 'maximized') return;
     this.resizing = true;
     this.resizeEdge = edge;
     this.resizeStartX = event.clientX;
     this.resizeStartY = event.clientY;
-    this.resizeStartW = this.windowWidth;
-    this.resizeStartH = this.windowHeight;
-    this.resizeStartTop = this.windowTop;
-    this.resizeStartLeft = this.windowLeft;
+    this.resizeStartW = this.plotterWidth;
+    this.resizeStartH = this.plotterHeight;
+    this.resizeStartTop = this.plotterTop;
+    this.resizeStartLeft = this.plotterLeft;
     event.preventDefault();
     event.stopPropagation();
   }
 
-  private handleResize(event: MouseEvent) {
+  private handlePlotterResize(event: MouseEvent) {
     const dx = event.clientX - this.resizeStartX;
     const dy = event.clientY - this.resizeStartY;
 
     if (this.resizeEdge.includes('right')) {
-      this.windowWidth = Math.max(400, this.resizeStartW + dx);
+      this.plotterWidth = Math.max(400, this.resizeStartW + dx);
     }
     if (this.resizeEdge.includes('bottom')) {
-      this.windowHeight = Math.max(300, this.resizeStartH + dy);
+      this.plotterHeight = Math.max(300, this.resizeStartH + dy);
     }
     if (this.resizeEdge.includes('left')) {
       const newW = Math.max(400, this.resizeStartW - dx);
-      this.windowLeft = this.resizeStartLeft + (this.resizeStartW - newW);
-      this.windowWidth = newW;
+      this.plotterLeft = this.resizeStartLeft + (this.resizeStartW - newW);
+      this.plotterWidth = newW;
     }
     if (this.resizeEdge.includes('top')) {
       const newH = Math.max(300, this.resizeStartH - dy);
-      this.windowTop = this.resizeStartTop + (this.resizeStartH - newH);
-      this.windowHeight = newH;
+      this.plotterTop = this.resizeStartTop + (this.resizeStartH - newH);
+      this.plotterHeight = newH;
     }
   }
 
-  // --- LEGEND CLICK (highlight a dataset) ---
-  onLegendClick(index: number) {
-    this.highlightDataset(index);
+  // --- PLOTTER LEGEND INTERACTION ---
+  onPlotterLegendSelect(index: number) {
+    this.highlightPlotterTrace(index);
   }
 
-  // clicking directly on a line in the chart
-  private highlightDataset(index: number) {
-    if (!this.chart) return;
+  // clicking directly on a trace in the plotter
+  private highlightPlotterTrace(index: number) {
+    if (!this.plotterChart) return;
 
-    const isSame = this.highlightedIndex() === index;
-    this.highlightedIndex.set(isSame ? null : index);
+    const isSame = this.highlightedTraceIndex() === index;
+    this.highlightedTraceIndex.set(isSame ? null : index);
 
-    const current = this.highlightedIndex();
-    this.chart.data.datasets.forEach((ds, i) => {
+    const current = this.highlightedTraceIndex();
+    this.plotterChart.data.datasets.forEach((ds, i) => {
       if (current === null) {
         ds.borderWidth = 2;
       } else {
@@ -252,21 +252,21 @@ export class App implements OnDestroy {
       }
     });
 
-    this.chart.update('none');
-    this.scrollLegendTo(current ?? index);
+    this.plotterChart.update('none');
+    this.scrollToPlotterLegend(current ?? index);
   }
 
-  private scrollLegendTo(index: number) {
-    if (!this.legendContainer) return;
-    const container = this.legendContainer.nativeElement;
+  private scrollToPlotterLegend(index: number) {
+    if (!this.plotterLegendContainer) return;
+    const container = this.plotterLegendContainer.nativeElement;
     const item = container.querySelector(`[data-legend-index="${index}"]`) as HTMLElement;
     if (item) {
       item.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
     }
   }
 
-  // CSV PARSING
-  parseCsv(text: string): ParsedCsv {
+  // DATA CSV PARSING
+  parsePlotterCsv(text: string): ParsedPlotterData {
     const lines = text
       .split(/\r?\n/)
       .map(line => line.trim())
@@ -285,7 +285,7 @@ export class App implements OnDestroy {
     return { headers, rows };
   }
 
-  transformToChartData(parsed: ParsedCsv): ChartData {
+  transformToPlotterData(parsed: ParsedPlotterData): PlotterWaveformData {
     if (!parsed || parsed.headers.length === 0) {
       return { labels: [], datasets: [], xAxisLabel: '' };
     }
@@ -300,46 +300,45 @@ export class App implements OnDestroy {
     return { labels, datasets, xAxisLabel: parsed.headers[0] };
   }
 
-  // MAKES THE CHART VISIBLE
-  renderChart(chartData: ChartData) {
-    if (!this.chartCanvas) return;
+  // RENDERS THE DATAPLOTTER WAVEFORM
+  renderPlotterWaveform(plotData: PlotterWaveformData) {
+    if (!this.plotterCanvas) return;
 
-    if (this.chart) {
-      this.chart.destroy();
+    if (this.plotterChart) {
+      this.plotterChart.destroy();
     }
 
-    // creates canvas element (to make chart later)
-    const ctx = this.chartCanvas.nativeElement.getContext('2d');
+    // creates canvas rendering context for waveform
+    const ctx = this.plotterCanvas.nativeElement.getContext('2d');
     if (!ctx) return;
 
-    // set proper variables
-    const labels = chartData.labels; //x axis values
-    const datasets = chartData.datasets; //each lines values (c1_voltage, ...)
+    // extract trace data
+    const labels = plotData.labels; // time axis values
+    const datasets = plotData.datasets; // each trace (voltage, current, etc.)
 
-    // limits the chart for the data (helps with scaling)
+    // compute axis bounds from data
     const minX = Math.min(...labels);
     const maxX = Math.max(...labels);
     const minY = Math.min(...datasets.flatMap(dataset => dataset.data));
     const maxY = Math.max(...datasets.flatMap(dataset => dataset.data));
 
-    // generate colors for each dataset
+    // generate distinct colors for each trace
     const colors = datasets.map((_, i) => {
       const hue = (i * 360 / datasets.length) % 360;
       return `hsl(${hue}, 70%, 50%)`;
     });
 
-    // build legend items for custom legend
-    this.legendItems = datasets.map((ds, i) => ({
+    // build plotter legend entries
+    this.plotterLegendItems = datasets.map((ds, i) => ({
       label: ds.label,
       color: colors[i],
       index: i
     }));
-    this.highlightedIndex.set(null);
+    this.highlightedTraceIndex.set(null);
 
-    // IMPORTANT: builds the chart
-    this.chart = new Chart(ctx, {
+    // builds the plotter chart instance
+    this.plotterChart = new Chart(ctx, {
       type: 'line',
-      // makes each line:...
       data: {
         labels,
         datasets: datasets.map((dataset, i) => ({
@@ -352,7 +351,7 @@ export class App implements OnDestroy {
         }))
       },
       options: {
-        responsive: true, //resizes when needed
+        responsive: true,
         maintainAspectRatio: false,
         interaction: {
           mode: 'nearest',
@@ -361,16 +360,15 @@ export class App implements OnDestroy {
         },
         onClick: (_event, elements) => {
           if (elements.length > 0) {
-            this.highlightDataset(elements[0].datasetIndex);
+            this.highlightPlotterTrace(elements[0].datasetIndex);
           }
         },
         plugins: {
           tooltip: {
             enabled: false,
             external: (context: any) => {
-              if (!this.tooltipEnabled) return;
-              // use default tooltip rendering when enabled
-              const tooltipEl = this.getOrCreateTooltipEl(context.chart);
+              if (!this.plotterTooltipActive) return;
+              const tooltipEl = this.getOrCreatePlotterTooltipEl();
               const tooltipModel = context.tooltip;
               if (tooltipModel.opacity === 0) {
                 tooltipEl.style.opacity = '0';
@@ -396,7 +394,7 @@ export class App implements OnDestroy {
             }
           },
           legend: {
-            display: false // we use custom legend
+            display: false // custom plotter legend is used instead
           },
           zoom: {
             pan: {
@@ -421,7 +419,7 @@ export class App implements OnDestroy {
             max: maxX,
             title: {
               display: true,
-              text: chartData.xAxisLabel
+              text: plotData.xAxisLabel
             }
           },
           y: {
@@ -437,45 +435,45 @@ export class App implements OnDestroy {
     });
   }
 
-  resetZoom() {
-    if (this.chart) {
-      this.chart.resetZoom();
+  resetPlotterZoom() {
+    if (this.plotterChart) {
+      this.plotterChart.resetZoom();
     }
   }
 
-  // tooltip appears only after holding mouse still for 2 seconds
-  onChartMouseMove() {
-    this.clearHoverTimer();
-    if (this.tooltipEnabled) {
-      this.tooltipEnabled = false;
-      this.hideTooltipEl();
+  // plotter tooltip appears only after holding mouse still for 2 seconds
+  onPlotterHover() {
+    this.clearPlotterHoverTimer();
+    if (this.plotterTooltipActive) {
+      this.plotterTooltipActive = false;
+      this.hidePlotterTooltipEl();
     }
-    this.hoverTimer = setTimeout(() => {
-      this.tooltipEnabled = true;
-      if (this.chart) {
-        this.chart.update('none');
+    this.plotterHoverTimer = setTimeout(() => {
+      this.plotterTooltipActive = true;
+      if (this.plotterChart) {
+        this.plotterChart.update('none');
       }
     }, 2000);
   }
 
-  onChartMouseLeave() {
-    this.clearHoverTimer();
-    this.tooltipEnabled = false;
-    this.hideTooltipEl();
+  onPlotterHoverEnd() {
+    this.clearPlotterHoverTimer();
+    this.plotterTooltipActive = false;
+    this.hidePlotterTooltipEl();
   }
 
-  private clearHoverTimer() {
-    if (this.hoverTimer) {
-      clearTimeout(this.hoverTimer);
-      this.hoverTimer = null;
+  private clearPlotterHoverTimer() {
+    if (this.plotterHoverTimer) {
+      clearTimeout(this.plotterHoverTimer);
+      this.plotterHoverTimer = null;
     }
   }
 
-  private getOrCreateTooltipEl(chart: any): HTMLElement {
-    let el = document.getElementById('chart-custom-tooltip');
+  private getOrCreatePlotterTooltipEl(): HTMLElement {
+    let el = document.getElementById('dataplotter-tooltip');
     if (!el) {
       el = document.createElement('div');
-      el.id = 'chart-custom-tooltip';
+      el.id = 'dataplotter-tooltip';
       el.style.position = 'absolute';
       el.style.background = 'rgba(30,41,59,0.92)';
       el.style.color = '#fff';
@@ -491,8 +489,8 @@ export class App implements OnDestroy {
     return el;
   }
 
-  private hideTooltipEl() {
-    const el = document.getElementById('chart-custom-tooltip');
+  private hidePlotterTooltipEl() {
+    const el = document.getElementById('dataplotter-tooltip');
     if (el) {
       el.style.opacity = '0';
     }

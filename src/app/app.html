@@ -1,102 +1,102 @@
-<div class="app-container" (mousemove)="onMouseMove($event)" (mouseup)="onMouseUp()">
-  <h1>CSV Waveform Plotter</h1>
+<div class="dataplotter-container" (mousemove)="onPlotterMouseMove($event)" (mouseup)="onPlotterMouseUp()">
+  <h1>Data Plotter</h1>
 
-  <div class="controls">
-    <input type="file" accept=".csv" (change)="onFileSelected($event)" />
-    <button class="btn-display" (click)="onDisplay()">Display</button>
+  <div class="dataplotter-controls">
+    <input type="file" accept=".csv" (change)="onPlotterFileSelected($event)" />
+    <button class="btn-display-plotter" (click)="displayPlotterWaveform()">Display</button>
   </div>
 
-  <div class="info-row">
+  <div class="dataplotter-info-row">
     <p><strong>Status:</strong>
-      <span [class]="'status-badge status-' + status()">{{ status() }}</span>
+      <span [class]="'status-badge status-' + plotterStatus()">{{ plotterStatus() }}</span>
     </p>
-    <p><strong>File:</strong> {{ fileName() || 'None' }}</p>
-    <p class="status-message">{{ statusMessage() }}</p>
+    <p><strong>File:</strong> {{ plotterFileName() || 'None' }}</p>
+    <p class="dataplotter-status-message">{{ plotterStatusMessage() }}</p>
   </div>
 
-  @if (errorMessage()) {
-    <div class="error-banner">{{ errorMessage() }}</div>
+  @if (plotterErrorMessage()) {
+    <div class="dataplotter-error-banner">{{ plotterErrorMessage() }}</div>
   }
 
-  @if (fileLoaded()) {
-    <details class="panel">
-      <summary>Raw CSV</summary>
-      <pre>{{ fileContent() }}</pre>
+  @if (plotterDataLoaded()) {
+    <details class="dataplotter-panel">
+      <summary>Raw CSV Data</summary>
+      <pre>{{ plotterFileContent() }}</pre>
     </details>
 
-    <details class="panel">
-      <summary>Parsed Chart Data</summary>
-      <pre>{{ parsedDataText() }}</pre>
+    <details class="dataplotter-panel">
+      <summary>Parsed Plotter Data</summary>
+      <pre>{{ parsedPlotterText() }}</pre>
     </details>
   }
 
-  <!-- CHART OVERLAY WINDOW -->
-  @if (chartVisible()) {
+  <!-- DATAPLOTTER OVERLAY WINDOW -->
+  @if (plotterVisible()) {
     <!-- backdrop to dim background (hidden when minimized) -->
-    @if (windowState() !== 'minimized') {
-      <div class="chart-backdrop"></div>
+    @if (plotterWindowState() !== 'minimized') {
+      <div class="dataplotter-backdrop"></div>
     }
 
-    @if (windowState() === 'minimized') {
+    @if (plotterWindowState() === 'minimized') {
       <!-- minimized taskbar item -->
-      <div class="minimized-bar" (click)="restoreChart()">
-        <span>Chart — click to restore</span>
+      <div class="dataplotter-minimized-bar" (click)="restorePlotter()">
+        <span>DataPlotter — click to restore</span>
       </div>
     } @else {
       <div
-        class="chart-overlay"
-        [class.maximized]="windowState() === 'maximized'"
-        [style.width.px]="windowState() === 'maximized' ? null : windowWidth"
-        [style.height.px]="windowState() === 'maximized' ? null : windowHeight"
-        [style.top.px]="windowState() === 'maximized' ? null : windowTop"
-        [style.left.px]="windowState() === 'maximized' ? null : windowLeft"
+        class="dataplotter-overlay"
+        [class.maximized]="plotterWindowState() === 'maximized'"
+        [style.width.px]="plotterWindowState() === 'maximized' ? null : plotterWidth"
+        [style.height.px]="plotterWindowState() === 'maximized' ? null : plotterHeight"
+        [style.top.px]="plotterWindowState() === 'maximized' ? null : plotterTop"
+        [style.left.px]="plotterWindowState() === 'maximized' ? null : plotterLeft"
       >
         <!-- resize handles -->
-        <div class="resize-handle top" (mousedown)="onResizeStart($event, 'top')"></div>
-        <div class="resize-handle bottom" (mousedown)="onResizeStart($event, 'bottom')"></div>
-        <div class="resize-handle left" (mousedown)="onResizeStart($event, 'left')"></div>
-        <div class="resize-handle right" (mousedown)="onResizeStart($event, 'right')"></div>
-        <div class="resize-handle top-left" (mousedown)="onResizeStart($event, 'top-left')"></div>
-        <div class="resize-handle top-right" (mousedown)="onResizeStart($event, 'top-right')"></div>
-        <div class="resize-handle bottom-left" (mousedown)="onResizeStart($event, 'bottom-left')"></div>
-        <div class="resize-handle bottom-right" (mousedown)="onResizeStart($event, 'bottom-right')"></div>
+        <div class="resize-handle top" (mousedown)="onPlotterResizeStart($event, 'top')"></div>
+        <div class="resize-handle bottom" (mousedown)="onPlotterResizeStart($event, 'bottom')"></div>
+        <div class="resize-handle left" (mousedown)="onPlotterResizeStart($event, 'left')"></div>
+        <div class="resize-handle right" (mousedown)="onPlotterResizeStart($event, 'right')"></div>
+        <div class="resize-handle top-left" (mousedown)="onPlotterResizeStart($event, 'top-left')"></div>
+        <div class="resize-handle top-right" (mousedown)="onPlotterResizeStart($event, 'top-right')"></div>
+        <div class="resize-handle bottom-left" (mousedown)="onPlotterResizeStart($event, 'bottom-left')"></div>
+        <div class="resize-handle bottom-right" (mousedown)="onPlotterResizeStart($event, 'bottom-right')"></div>
 
         <!-- title bar (drag area) -->
-        <div class="title-bar" (mousedown)="onTitleBarMouseDown($event)">
-          <span class="title-text">Waveform Chart</span>
-          <div class="window-controls">
-            <button class="win-btn" title="Reset Zoom" (click)="resetZoom()">&#8634;</button>
-            <button class="win-btn" title="Minimize" (click)="minimizeChart()">&#8211;</button>
-            <button class="win-btn" title="Maximize" (click)="maximizeChart()">&#9744;</button>
-            <button class="win-btn" title="Fullscreen" (click)="fullscreenChart()">&#9974;</button>
-            <button class="win-btn close-btn" title="Close" (click)="closeChart()">&#10005;</button>
+        <div class="dataplotter-title-bar" (mousedown)="onPlotterTitleBarMouseDown($event)">
+          <span class="dataplotter-title-text">DataPlotter Waveform</span>
+          <div class="dataplotter-window-controls">
+            <button class="win-btn" title="Reset Zoom" (click)="resetPlotterZoom()">&#8634;</button>
+            <button class="win-btn" title="Minimize" (click)="minimizePlotter()">&#8211;</button>
+            <button class="win-btn" title="Maximize" (click)="maximizePlotter()">&#9744;</button>
+            <button class="win-btn" title="Fullscreen" (click)="fullscreenPlotter()">&#9974;</button>
+            <button class="win-btn close-btn" title="Close" (click)="closePlotter()">&#10005;</button>
           </div>
         </div>
 
-        <!-- custom legend (scrollable, 2 rows) -->
-        <div class="legend-wrapper" #legendContainer>
-          @for (item of legendItems; track item.index) {
+        <!-- custom plotter legend (scrollable, 2 rows) -->
+        <div class="dataplotter-legend-wrapper" #plotterLegendContainer>
+          @for (item of plotterLegendItems; track item.index) {
             <span
-              class="legend-item"
+              class="dataplotter-legend-item"
               [attr.data-legend-index]="item.index"
-              [class.highlighted]="highlightedIndex() === item.index"
-              (click)="onLegendClick(item.index)"
+              [class.highlighted]="highlightedTraceIndex() === item.index"
+              (click)="onPlotterLegendSelect(item.index)"
             >
-              <span class="legend-color" [style.background]="item.color"></span>
+              <span class="dataplotter-legend-color" [style.background]="item.color"></span>
               {{ item.label }}
             </span>
           }
         </div>
 
-        <!-- chart canvas area -->
-        <div class="chart-body"
-          (mousemove)="onChartMouseMove()"
-          (mouseleave)="onChartMouseLeave()">
-          <canvas #chartCanvas></canvas>
+        <!-- plotter canvas area -->
+        <div class="dataplotter-canvas-body"
+          (mousemove)="onPlotterHover()"
+          (mouseleave)="onPlotterHoverEnd()">
+          <canvas #plotterCanvas></canvas>
         </div>
 
-        <div class="chart-footer">
-          <small>Scroll to zoom | Shift+Drag to box-zoom | Drag to pan | Click line to highlight</small>
+        <div class="dataplotter-footer">
+          <small>Scroll to zoom | Shift+Drag to box-zoom | Drag to pan | Click trace to highlight</small>
         </div>
       </div>
     }
