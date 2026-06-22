@@ -162,6 +162,11 @@ h1 {
   user-select: none;
 }
 
+/* minimized: keep mounted (canvas survives) but hidden */
+.dataplotter-overlay.minimized {
+  display: none;
+}
+
 .dataplotter-overlay.maximized {
   top: 0 !important;
   left: 0 !important;
@@ -262,6 +267,16 @@ h1 {
 .dataplotter-legend-item.highlighted {
   background: #dbeafe;
   font-weight: 700;
+}
+
+.dataplotter-legend-item.isolated {
+  background: #2563eb;
+  color: #fff;
+  font-weight: 700;
+}
+
+.dataplotter-legend-item.dimmed {
+  opacity: 0.35;
 }
 
 .dataplotter-legend-color {

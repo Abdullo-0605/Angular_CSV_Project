@@ -12,6 +12,41 @@ ng serve
 
 Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
 
+## Real-time testbed feed (data server)
+
+The Live Capture feature is fed by a standalone Node/Express **data server** that
+simulates the testbed: a generator continuously writes rows to a real CSV file
+on disk (`live_data.csv`) and streams each new row to the plotter over
+Server-Sent Events (SSE).
+
+Run it in a **separate terminal** alongside `ng serve`:
+
+```bash
+npm run start:data
+```
+
+It listens on `http://localhost:4000` (override with the `PORT` env var) and
+exposes:
+
+| Method | Endpoint        | Purpose                                              |
+| ------ | --------------- | ---------------------------------------------------- |
+| GET    | `/api/logs`     | Available log column names                           |
+| POST   | `/api/start`    | Start/schedule generation (power ramp, logs, timing) |
+| POST   | `/api/stop`     | Stop generation                                      |
+| POST   | `/api/reset`    | Stop + clear the live CSV                            |
+| GET    | `/api/status`   | Current generator status                             |
+| GET    | `/api/stream`   | SSE stream consumed by the plotter                   |
+| GET    | `/api/download` | Download the generated `live_data.csv`               |
+
+In the app, open **Live Capture**, set the power range (e.g. 0 W → 50 W) and
+ramp/timeline, optionally schedule a start time, check which log(s) to capture,
+then press **Start**. The plotter builds the waveform in real time as the CSV is
+written. Double-click a legend entry to display only that trace.
+
+> The data server is decoupled behind `LiveDataService`, so the simulated
+> generator can later be replaced by the real testbed feed without changing the
+> plotter.
+
 ## Code scaffolding
 
 Angular CLI includes powerful code scaffolding tools. To generate a new component, run:

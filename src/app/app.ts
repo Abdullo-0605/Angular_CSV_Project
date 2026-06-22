@@ -1,6 +1,8 @@
-import { Component, ElementRef, signal, ViewChild, OnDestroy } from '@angular/core';
+import { Component, ElementRef, signal, ViewChild, OnDestroy, OnInit, inject } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import Chart from 'chart.js/auto';
 import zoomPlugin from 'chartjs-plugin-zoom';
+import { LiveDataService, LiveRow, LiveStatus, LiveMeta } from './live-data.service';
 
 Chart.register(zoomPlugin);
 
@@ -19,12 +21,14 @@ interface PlotterWaveformData { // format for waveform rendering
 @Component({
   selector: 'datalogger-dataplotter',
   standalone: true,
+  imports: [FormsModule],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
 
 // BACKEND CLASS — DataPlotter (part of DataLogger module)
-export class DataPlotter implements OnDestroy {
+export class DataPlotter implements OnInit, OnDestroy {
+  private live = inject(LiveDataService);
   private onPlotterFullscreenExit = () => this.handlePlotterFullscreenExit();
   @ViewChild('plotterCanvas') plotterCanvas!: ElementRef<HTMLCanvasElement>;
   @ViewChild('plotterLegendContainer') plotterLegendContainer!: ElementRef<HTMLDivElement>;
@@ -64,12 +68,355 @@ export class DataPlotter implements OnDestroy {
   private plotterChart: Chart | null = null;
   private plotterData: PlotterWaveformData | null = null;
   highlightedTraceIndex = signal<number | null>(null);
+  // when set, only this trace is displayed (double-click a legend to isolate)
+  isolatedTraceIndex = signal<number | null>(null);
   plotterLegendItems: { label: string; color: string; index: number }[] = [];
 
   // dataplotter tooltip hold timer
   private plotterHoverTimer: any = null;
   private plotterTooltipActive = false;
   private isPlotterFullscreen = false;
+
+  // --- LIVE CAPTURE STATE (fed by the testbed data server) ---
+  liveConnected = this.live.connected;
+  liveStatus = signal<LiveStatus | null>(null);
+  availableLogs = signal<string[]>([]);
+  selectedLogs = signal<string[]>([]);
+  logFilter = signal('');
+  liveError = signal('');
+  liveMode = signal(false); // true when the chart is showing the live feed
+
+  // live capture form inputs (bound in the template)
+  startWatts = signal(0);
+  endWatts = signal(50);
+  rampSeconds = signal(10);
+  intervalMs = signal(100);
+  durationSeconds = signal(0); // 0 = run until stopped
+  scheduledTime = signal(''); // datetime-local string; empty = start now
+
+  // a 1s heartbeat used to render the scheduled-start countdown
+  nowMs = signal(Date.now());
+  private clockTimer: any = null;
+
+  // live chart buffers
+  private liveColumns: string[] = [];
+  private liveLabels: number[] = [];
+  private liveSeries: number[][] = [];
+  private readonly maxLivePoints = 1000;
+  private singleClickTimer: any = null;
+
+  // ============================================================
+  // LIVE CAPTURE — real-time generator feed from the data server
+  // ============================================================
+  ngOnInit() {
+    // wire stream callbacks
+    this.live.onMeta = (meta) => this.handleLiveMeta(meta);
+    this.live.onSnapshot = (rows) => this.applyLiveSnapshot(rows);
+    this.live.onRow = (row) => this.appendLiveRow(row);
+    this.live.onReset = () => this.clearLiveData();
+    this.live.onStatus = (status) => this.liveStatus.set(status);
+
+    // load selectable logs + open the live stream
+    this.live
+      .fetchLogs()
+      .then((cols) => {
+        this.availableLogs.set(cols);
+        // sensible default: capture the first named channel
+        if (this.selectedLogs().length === 0 && cols.length) {
+          this.selectedLogs.set([cols[0]]);
+        }
+      })
+      .catch(() => this.liveError.set('Data server offline — run "npm run start:data" to enable Live Capture.'));
+
+    this.live.connectStream();
+
+    // tick a clock for the scheduled-start countdown
+    if (typeof window !== 'undefined') {
+      this.clockTimer = setInterval(() => this.nowMs.set(Date.now()), 1000);
+    }
+  }
+
+  // --- log selection helpers ---
+  filteredLogs(): string[] {
+    const q = this.logFilter().trim().toLowerCase();
+    const all = this.availableLogs();
+    return q ? all.filter((c) => c.toLowerCase().includes(q)) : all;
+  }
+
+  isLogSelected(name: string): boolean {
+    return this.selectedLogs().includes(name);
+  }
+
+  toggleLog(name: string) {
+    const set = new Set(this.selectedLogs());
+    set.has(name) ? set.delete(name) : set.add(name);
+    this.selectedLogs.set([...set]);
+  }
+
+  selectOnlyLog(name: string) {
+    this.selectedLogs.set([name]);
+  }
+
+  selectAllLogs() {
+    this.selectedLogs.set([...this.availableLogs()]);
+  }
+
+  clearSelectedLogs() {
+    this.selectedLogs.set([]);
+  }
+
+  // --- capture controls ---
+  async startLive() {
+    this.liveError.set('');
+    const logs = this.selectedLogs();
+    if (logs.length === 0) {
+      this.liveError.set('Select at least one log to capture.');
+      return;
+    }
+
+    const scheduled = this.scheduledTime();
+    let startEpochMs: number | undefined;
+    if (scheduled) {
+      const t = new Date(scheduled).getTime();
+      if (Number.isFinite(t)) startEpochMs = t;
+    }
+
+    const config = {
+      intervalMs: Number(this.intervalMs()) || 100,
+      startWatts: Number(this.startWatts()) || 0,
+      endWatts: Number(this.endWatts()) || 0,
+      rampSeconds: Number(this.rampSeconds()) || 0,
+      durationSeconds: Number(this.durationSeconds()) || 0,
+      selectedLogs: logs,
+      startEpochMs,
+    };
+
+    // open the overlay so the waveform builds live, then start the server
+    this.liveMode.set(true);
+    this.plotterVisible.set(true);
+    this.plotterWindowState.set('normal');
+    this.plotterErrorMessage.set('');
+
+    try {
+      await this.live.start(config);
+    } catch {
+      this.liveError.set('Could not reach the data server. Is "npm run start:data" running?');
+    }
+  }
+
+  async stopLive() {
+    try {
+      await this.live.stop();
+    } catch {
+      this.liveError.set('Could not reach the data server.');
+    }
+  }
+
+  async resetLive() {
+    try {
+      await this.live.reset();
+    } catch {
+      this.liveError.set('Could not reach the data server.');
+    }
+  }
+
+  downloadLive() {
+    if (typeof window !== 'undefined') {
+      window.open(this.live.downloadUrl(), '_blank');
+    }
+  }
+
+  // seconds remaining until a scheduled capture starts (null if not scheduled)
+  scheduledCountdown(): number | null {
+    const status = this.liveStatus();
+    if (!status || status.status !== 'scheduled' || !status.scheduledFor) return null;
+    return Math.max(0, Math.ceil((status.scheduledFor - this.nowMs()) / 1000));
+  }
+
+  isLiveRunning(): boolean {
+    const s = this.liveStatus()?.status;
+    return s === 'running' || s === 'scheduled';
+  }
+
+  // --- live stream handlers ---
+  private handleLiveMeta(meta: LiveMeta) {
+    this.liveColumns = meta.columns ?? [];
+    // only (re)build once we're in live mode, the overlay is open, and there
+    // are columns to draw (ignore the empty meta sent on initial connect).
+    if (!this.liveMode() || !this.plotterVisible() || this.liveColumns.length === 0) {
+      return;
+    }
+    this.buildLiveChart(this.liveColumns);
+  }
+
+  private applyLiveSnapshot(rows: LiveRow[]) {
+    if (!this.liveMode()) return;
+    this.liveLabels = [];
+    this.liveSeries = this.liveColumns.map(() => []);
+    for (const row of rows) {
+      this.pushLiveRow(row);
+    }
+    if (!this.plotterChart) {
+      this.buildLiveChart(this.liveColumns);
+    } else {
+      this.refreshLiveChartData();
+    }
+  }
+
+  private appendLiveRow(row: LiveRow) {
+    if (!this.liveMode()) return;
+    if (!this.plotterChart) {
+      // chart not ready yet — buffer the point, it will render once built
+      if (this.liveSeries.length === 0 && this.liveColumns.length) {
+        this.liveSeries = this.liveColumns.map(() => []);
+      }
+      this.pushLiveRow(row);
+      return;
+    }
+    this.pushLiveRow(row);
+    this.refreshLiveChartData();
+  }
+
+  // push one row into the rolling buffers (trimming to maxLivePoints)
+  private pushLiveRow(row: LiveRow) {
+    if (this.liveSeries.length !== this.liveColumns.length) {
+      this.liveSeries = this.liveColumns.map(() => []);
+    }
+    this.liveLabels.push(row.time);
+    for (let i = 0; i < this.liveColumns.length; i++) {
+      this.liveSeries[i].push(row.values[i] ?? NaN);
+    }
+    if (this.liveLabels.length > this.maxLivePoints) {
+      this.liveLabels.shift();
+      for (const s of this.liveSeries) s.shift();
+    }
+  }
+
+  private clearLiveData() {
+    this.liveLabels = [];
+    this.liveSeries = this.liveColumns.map(() => []);
+    if (this.plotterChart && this.liveMode()) {
+      this.plotterChart.data.labels = [];
+      this.plotterChart.data.datasets.forEach((ds) => (ds.data = []));
+      this.plotterChart.update('none');
+    }
+  }
+
+  // push the current buffers onto the chart and slide the x-window
+  private refreshLiveChartData() {
+    const chart = this.plotterChart;
+    if (!chart) return;
+    chart.data.labels = this.liveLabels;
+    this.liveSeries.forEach((series, i) => {
+      if (chart.data.datasets[i]) chart.data.datasets[i].data = series;
+    });
+    const xScale = chart.options.scales?.['x'] as any;
+    if (this.liveLabels.length > 1 && xScale) {
+      xScale.min = this.liveLabels[0];
+      xScale.max = this.liveLabels[this.liveLabels.length - 1];
+    }
+    chart.update('none');
+  }
+
+  // build an empty chart with one trace per streamed column, ready to fill live
+  private buildLiveChart(columns: string[], attempt = 0) {
+    if (!this.plotterCanvas) {
+      if (attempt < 10) setTimeout(() => this.buildLiveChart(columns, attempt + 1), 50);
+      return;
+    }
+    if (this.plotterChart) {
+      this.plotterChart.destroy();
+      this.plotterChart = null;
+    }
+    const ctx = this.plotterCanvas.nativeElement.getContext('2d');
+    if (!ctx) return;
+
+    if (this.liveSeries.length !== columns.length) {
+      this.liveSeries = columns.map(() => []);
+    }
+
+    const colors = columns.map((_, i) => `hsl(${(i * 360 / Math.max(1, columns.length)) % 360}, 70%, 50%)`);
+
+    this.plotterLegendItems = columns.map((label, i) => ({ label, color: colors[i], index: i }));
+    this.highlightedTraceIndex.set(null);
+    this.isolatedTraceIndex.set(null);
+
+    this.plotterChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [...this.liveLabels],
+        datasets: columns.map((label, i) => ({
+          label,
+          data: [...(this.liveSeries[i] ?? [])],
+          borderColor: colors[i],
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.2,
+        })),
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        interaction: { mode: 'nearest', axis: 'xy', intersect: true },
+        onClick: (_event, elements) => {
+          if (elements.length > 0) this.highlightPlotterTrace(elements[0].datasetIndex);
+        },
+        plugins: {
+          tooltip: this.plotterTooltipConfig(),
+          legend: { display: false },
+          zoom: {
+            pan: { enabled: true, mode: 'xy' },
+            zoom: {
+              wheel: { enabled: true },
+              pinch: { enabled: true },
+              drag: { enabled: true, modifierKey: 'shift' },
+              mode: 'xy',
+            },
+          },
+        },
+        scales: {
+          x: { type: 'linear', title: { display: true, text: 'Time' } },
+          y: { title: { display: true, text: 'Power (W)' } },
+        },
+      },
+    });
+
+    this.refreshLiveChartData();
+  }
+
+  // shared "hold to reveal" tooltip config used by both static and live charts
+  private plotterTooltipConfig(): any {
+    return {
+      enabled: false,
+      external: (context: any) => {
+        if (!this.plotterTooltipActive) return;
+        const tooltipEl = this.getOrCreatePlotterTooltipEl();
+        const tooltipModel = context.tooltip;
+        if (tooltipModel.opacity === 0) {
+          tooltipEl.style.opacity = '0';
+          return;
+        }
+        if (tooltipModel.body) {
+          const titleLines = tooltipModel.title || [];
+          const bodyLines = tooltipModel.body.map((b: any) => b.lines);
+          let html = '';
+          titleLines.forEach((t: string) => { html += `<div style="font-weight:700;margin-bottom:4px">${t}</div>`; });
+          bodyLines.forEach((lines: string[], i: number) => {
+            const color = tooltipModel.labelColors[i]?.borderColor || '#fff';
+            lines.forEach((line: string) => {
+              html += `<div style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;background:${color};border-radius:2px"></span>${line}</div>`;
+            });
+          });
+          tooltipEl.innerHTML = html;
+        }
+        const pos = context.chart.canvas.getBoundingClientRect();
+        tooltipEl.style.opacity = '1';
+        tooltipEl.style.left = pos.left + window.scrollX + tooltipModel.caretX + 'px';
+        tooltipEl.style.top = pos.top + window.scrollY + tooltipModel.caretY + 'px';
+      }
+    };
+  }
 
   // ACTIVE FUNCTIONS — triggered when user imports a data file
   async onPlotterFileSelected(event: Event) {
@@ -108,6 +455,7 @@ export class DataPlotter implements OnDestroy {
     }
 
     this.plotterErrorMessage.set('');
+    this.liveMode.set(false); // showing an uploaded file, not the live feed
     this.plotterVisible.set(true);
     this.plotterWindowState.set('normal');
 
@@ -165,6 +513,9 @@ export class DataPlotter implements OnDestroy {
 
   ngOnDestroy() {
     document.removeEventListener('fullscreenchange', this.onPlotterFullscreenExit);
+    this.live.disconnectStream();
+    if (this.clockTimer) clearInterval(this.clockTimer);
+    if (this.singleClickTimer) clearTimeout(this.singleClickTimer);
   }
 
   // --- PLOTTER DRAG LOGIC ---
@@ -232,8 +583,43 @@ export class DataPlotter implements OnDestroy {
   }
 
   // --- PLOTTER LEGEND INTERACTION ---
+  // single click = highlight a trace; double click = isolate (display only it).
+  // a short timer lets us tell the two apart before acting on the single click.
   onPlotterLegendSelect(index: number) {
-    this.highlightPlotterTrace(index);
+    if (this.singleClickTimer) {
+      clearTimeout(this.singleClickTimer);
+      this.singleClickTimer = null;
+    }
+    this.singleClickTimer = setTimeout(() => {
+      this.singleClickTimer = null;
+      this.highlightPlotterTrace(index);
+    }, 220);
+  }
+
+  onPlotterLegendIsolate(index: number) {
+    if (this.singleClickTimer) {
+      clearTimeout(this.singleClickTimer);
+      this.singleClickTimer = null;
+    }
+    this.toggleIsolateTrace(index);
+  }
+
+  // show only the chosen trace (toggle off to show all again)
+  private toggleIsolateTrace(index: number) {
+    if (!this.plotterChart) return;
+    const isSame = this.isolatedTraceIndex() === index;
+    this.isolatedTraceIndex.set(isSame ? null : index);
+    this.applyTraceVisibility();
+    this.scrollToPlotterLegend(index);
+  }
+
+  private applyTraceVisibility() {
+    if (!this.plotterChart) return;
+    const isolated = this.isolatedTraceIndex();
+    this.plotterChart.data.datasets.forEach((ds, i) => {
+      ds.hidden = isolated !== null && i !== isolated;
+    });
+    this.plotterChart.update('none');
   }
 
   // clicking directly on a trace in the plotter
@@ -335,6 +721,7 @@ export class DataPlotter implements OnDestroy {
       index: i
     }));
     this.highlightedTraceIndex.set(null);
+    this.isolatedTraceIndex.set(null);
 
     // builds the plotter chart instance
     this.plotterChart = new Chart(ctx, {
@@ -364,35 +751,7 @@ export class DataPlotter implements OnDestroy {
           }
         },
         plugins: {
-          tooltip: {
-            enabled: false,
-            external: (context: any) => {
-              if (!this.plotterTooltipActive) return;
-              const tooltipEl = this.getOrCreatePlotterTooltipEl();
-              const tooltipModel = context.tooltip;
-              if (tooltipModel.opacity === 0) {
-                tooltipEl.style.opacity = '0';
-                return;
-              }
-              if (tooltipModel.body) {
-                const titleLines = tooltipModel.title || [];
-                const bodyLines = tooltipModel.body.map((b: any) => b.lines);
-                let html = '';
-                titleLines.forEach((t: string) => { html += `<div style="font-weight:700;margin-bottom:4px">${t}</div>`; });
-                bodyLines.forEach((lines: string[], i: number) => {
-                  const color = tooltipModel.labelColors[i]?.borderColor || '#fff';
-                  lines.forEach((line: string) => {
-                    html += `<div style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;background:${color};border-radius:2px"></span>${line}</div>`;
-                  });
-                });
-                tooltipEl.innerHTML = html;
-              }
-              const pos = context.chart.canvas.getBoundingClientRect();
-              tooltipEl.style.opacity = '1';
-              tooltipEl.style.left = pos.left + window.scrollX + tooltipModel.caretX + 'px';
-              tooltipEl.style.top = pos.top + window.scrollY + tooltipModel.caretY + 'px';
-            }
-          },
+          tooltip: this.plotterTooltipConfig(),
           legend: {
             display: false // custom plotter legend is used instead
           },
