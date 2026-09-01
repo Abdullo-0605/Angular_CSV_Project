@@ -23,6 +23,7 @@ import {
   WebSocketWaveformSource,
   isWebSerialSupported,
 } from '../data-sources';
+import { computeXWindow, computeYRange } from './axis-range';
 
 /** One entry in the checklist legend. */
 export interface TraceLegendItem {
@@ -510,48 +511,32 @@ export class DataPlotter implements OnDestroy {
     if (!xScale || !yScale) return;
 
     // ---- X ----
-    const firstTime = this.labels[0];
-    const lastTime = this.labels[this.labels.length - 1];
-    const win = this.effectiveWindowSeconds();
-
-    if (win > 0) {
-      xScale.min = lastTime - win;
-      xScale.max = lastTime;
-    } else {
-      xScale.min = firstTime;
-      xScale.max = lastTime > firstTime ? lastTime : firstTime + 1;
-    }
+    const xWindow = computeXWindow(
+      this.labels[0],
+      this.labels[this.labels.length - 1],
+      this.effectiveWindowSeconds(),
+    );
+    xScale.min = xWindow.min;
+    xScale.max = xWindow.max;
 
     // ---- Y ----
-    const manualMin = this.manualYMin();
-    const manualMax = this.manualYMax();
-    if (manualMin !== null && manualMax !== null && manualMax > manualMin) {
-      yScale.min = manualMin;
-      yScale.max = manualMax;
-      return;
+    const extent = this.visibleDataExtent();
+    const result = computeYRange({
+      dataMin: extent.min,
+      dataMax: extent.max,
+      latched: { min: this.latchedMin, max: this.latchedMax },
+      latch: this.latchYAxis(),
+      locked: this.lockYAxis(),
+      manualMin: this.manualYMin(),
+      manualMax: this.manualYMax(),
+    });
+
+    this.latchedMin = result.latched.min;
+    this.latchedMax = result.latched.max;
+    if (result.range) {
+      yScale.min = result.range.min;
+      yScale.max = result.range.max;
     }
-
-    // frozen: leave whatever is already on the axis
-    if (this.lockYAxis() && this.latchedMin !== null && this.latchedMax !== null) {
-      yScale.min = this.latchedMin;
-      yScale.max = this.latchedMax;
-      return;
-    }
-
-    const { min, max } = this.visibleDataExtent();
-    if (min === null || max === null) return;
-
-    if (this.latchYAxis()) {
-      this.latchedMin = this.latchedMin === null ? min : Math.min(this.latchedMin, min);
-      this.latchedMax = this.latchedMax === null ? max : Math.max(this.latchedMax, max);
-    } else {
-      this.latchedMin = min;
-      this.latchedMax = max;
-    }
-
-    const pad = (this.latchedMax - this.latchedMin) * 0.05 || 1;
-    yScale.min = this.latchedMin - pad;
-    yScale.max = this.latchedMax + pad;
   }
 
   /** Min/max across visible traces within the current x window. */
