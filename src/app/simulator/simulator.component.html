@@ -1,0 +1,98 @@
+<!-- ===================== TESTBED SIMULATOR (dev only) ===================== -->
+<section class="live-panel">
+  <div class="live-panel-header">
+    <div class="sim-title">
+      <h2>Testbed Simulator</h2>
+      <span class="sim-tag">dev only — not part of HMI integration</span>
+    </div>
+    <span class="conn-badge" [class.online]="liveConnected()">
+      <span class="conn-dot"></span>
+      {{ liveConnected() ? 'Data server connected' : 'Data server offline' }}
+    </span>
+  </div>
+
+  @if (liveError()) {
+    <div class="dataplotter-error-banner">{{ liveError() }}</div>
+  }
+
+  <div class="live-grid">
+    <!-- power profile + timing -->
+    <div class="live-card">
+      <h3>Power profile &amp; timeline</h3>
+      <div class="live-field-row">
+        <label>Start (W)
+          <input type="number" min="0" max="50" step="1"
+            [ngModel]="startWatts()" (ngModelChange)="startWatts.set($event)" />
+        </label>
+        <label>End (W)
+          <input type="number" min="0" max="50" step="1"
+            [ngModel]="endWatts()" (ngModelChange)="endWatts.set($event)" />
+        </label>
+        <label>Ramp (s)
+          <input type="number" min="0" step="1"
+            [ngModel]="rampSeconds()" (ngModelChange)="rampSeconds.set($event)" />
+        </label>
+      </div>
+      <div class="live-field-row">
+        <label>Sample interval (ms)
+          <input type="number" min="10" step="10"
+            [ngModel]="intervalMs()" (ngModelChange)="intervalMs.set($event)" />
+        </label>
+        <label>Run for (s, 0 = until stopped)
+          <input type="number" min="0" step="1"
+            [ngModel]="durationSeconds()" (ngModelChange)="durationSeconds.set($event)" />
+        </label>
+      </div>
+      <div class="live-field-row">
+        <label class="full">Scheduled start (optional)
+          <input type="datetime-local"
+            [ngModel]="scheduledTime()" (ngModelChange)="scheduledTime.set($event)" />
+        </label>
+      </div>
+      <p class="live-hint">Ramps commanded power from Start &rarr; End over the Ramp time, then holds. Leave the scheduled time empty to start now.</p>
+    </div>
+
+    <!-- log selection -->
+    <div class="live-card">
+      <h3>Logs to capture <span class="sel-count">{{ selectedLogs().length }} selected</span></h3>
+      <div class="log-toolbar">
+        <input type="text" class="log-filter" placeholder="Filter logs…"
+          [ngModel]="logFilter()" (ngModelChange)="logFilter.set($event)" />
+        <button type="button" (click)="selectAllLogs()">All</button>
+        <button type="button" (click)="clearSelectedLogs()">Clear</button>
+      </div>
+      <div class="log-list">
+        @for (name of filteredLogs(); track name) {
+          <label class="log-item" [class.selected]="isLogSelected(name)">
+            <input type="checkbox" [checked]="isLogSelected(name)" (change)="toggleLog(name)" />
+            <span class="log-name">{{ name }}</span>
+            <button type="button" class="log-only" title="Capture only this log"
+              (click)="selectOnlyLog(name); $event.preventDefault()">only</button>
+          </label>
+        } @empty {
+          <p class="live-hint">No logs match the filter.</p>
+        }
+      </div>
+      <p class="live-hint">Check one log to capture &amp; build a single trace in real time.</p>
+    </div>
+  </div>
+
+  <!-- action bar + live status -->
+  <div class="live-actions">
+    <button class="btn-live btn-start" (click)="startLive()" [disabled]="isLiveRunning()">▶ Start</button>
+    <button class="btn-live btn-stop" (click)="stopLive()" [disabled]="!isLiveRunning()">■ Stop</button>
+    <button class="btn-live btn-reset" (click)="resetLive()">Reset</button>
+    <button class="btn-live btn-download" (click)="downloadLive()">Download CSV</button>
+
+    @if (liveStatus(); as s) {
+      <div class="live-readout">
+        <span class="live-state" [attr.data-state]="s.status">{{ s.status }}</span>
+        @if (scheduledCountdown() !== null) {
+          <span>starts in {{ scheduledCountdown() }}s</span>
+        }
+        <span>{{ s.elapsed }} s</span>
+        <span>{{ s.rowCount }} rows</span>
+      </div>
+    }
+  </div>
+</section>

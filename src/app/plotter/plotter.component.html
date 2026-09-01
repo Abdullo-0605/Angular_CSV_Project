@@ -1,0 +1,347 @@
+<div class="dataplotter-container"
+  (mousemove)="onPlotterMouseMove($event)"
+  (mouseup)="onPlotterMouseUp()">
+
+  <!-- ===================== DATA SOURCE ===================== -->
+  <section class="plot-panel">
+    <div class="plot-panel-header">
+      <h2>Data Source</h2>
+      <span class="conn-badge" [attr.data-state]="sourceState()">
+        <span class="conn-dot"></span>
+        {{ sourceLabel() || 'No source attached' }}
+      </span>
+    </div>
+
+    @if (plotterErrorMessage()) {
+      <div class="dataplotter-error-banner">{{ plotterErrorMessage() }}</div>
+    }
+
+    <!-- transport selector -->
+    <div class="src-tabs" role="tablist">
+      <button type="button" class="src-tab" [class.active]="pickerKind() === 'file'"
+        (click)="pickerKind.set('file')">CSV / Excel file</button>
+      <button type="button" class="src-tab" [class.active]="pickerKind() === 'websocket'"
+        (click)="pickerKind.set('websocket')">WebSocket</button>
+      <button type="button" class="src-tab" [class.active]="pickerKind() === 'sse'"
+        (click)="pickerKind.set('sse')">SSE stream</button>
+      <button type="button" class="src-tab" [class.active]="pickerKind() === 'http'"
+        (click)="pickerKind.set('http')">HTTP poll</button>
+      <button type="button" class="src-tab" [class.active]="pickerKind() === 'serial'"
+        (click)="pickerKind.set('serial')">Serial (USB)</button>
+    </div>
+
+    <div class="src-body">
+      @switch (pickerKind()) {
+        @case ('file') {
+          <div class="src-row">
+            <input type="file" accept=".csv,.tsv,.txt" (change)="onPlotterFileSelected($event)" />
+            <button class="btn-primary" (click)="displayPlotterWaveform()">Display</button>
+          </div>
+          <p class="src-hint">
+            Static records are plotted in full — no time window is applied.
+            The host application can also push data in directly via
+            <code>plotFile()</code> or <code>plotCsvText()</code>, with no file dialog.
+          </p>
+        }
+
+        @case ('websocket') {
+          <div class="src-row">
+            <label class="grow">Endpoint
+              <input type="text" [ngModel]="wsUrl()" (ngModelChange)="wsUrl.set($event)"
+                placeholder="ws://host:port/path" />
+            </label>
+            <button class="btn-primary" (click)="connectPickedSource()">Connect</button>
+            <button class="btn-secondary" (click)="disconnectSource()">Disconnect</button>
+          </div>
+          <p class="src-hint">
+            Lowest-latency live path. A gateway on the HMI side reads the bus
+            (Modbus TCP / OPC UA / MQTT — none of which a browser can speak
+            directly) and republishes samples here as JSON
+            <code>{{ '{' }} time, values[] {{ '}' }}</code> or CSV lines.
+            Reconnects automatically.
+          </p>
+        }
+
+        @case ('sse') {
+          <div class="src-row">
+            <label class="grow">Endpoint
+              <input type="text" [ngModel]="sseUrl()" (ngModelChange)="sseUrl.set($event)"
+                placeholder="http://host:port/api/stream" />
+            </label>
+            <button class="btn-primary" (click)="connectPickedSource()">Connect</button>
+            <button class="btn-secondary" (click)="disconnectSource()">Disconnect</button>
+          </div>
+          <p class="src-hint">
+            Plain HTTP streaming — traverses the same proxies and TLS as the rest
+            of the HMI. Works with the bundled testbed data server out of the box.
+          </p>
+        }
+
+        @case ('http') {
+          <div class="src-row">
+            <label class="grow">Endpoint
+              <input type="text" [ngModel]="httpUrl()" (ngModelChange)="httpUrl.set($event)"
+                placeholder="http://host/logs/latest.csv" />
+            </label>
+            <label>Poll (ms)
+              <input type="number" min="100" step="100" class="narrow"
+                [ngModel]="httpIntervalMs()" (ngModelChange)="httpIntervalMs.set($event)" />
+            </label>
+            <button class="btn-primary" (click)="connectPickedSource()">Connect</button>
+            <button class="btn-secondary" (click)="disconnectSource()">Disconnect</button>
+          </div>
+          <p class="src-hint">
+            Fallback for backends with no streaming endpoint — can point straight
+            at a CSV log file the dataLogger is still writing.
+          </p>
+        }
+
+        @case ('serial') {
+          <div class="src-row">
+            <label>Baud rate
+              <input type="number" min="300" step="100" class="narrow"
+                [ngModel]="serialBaud()" (ngModelChange)="serialBaud.set($event)" />
+            </label>
+            <label class="check">
+              <input type="checkbox" [ngModel]="serialSynthesiseTime()"
+                (ngModelChange)="serialSynthesiseTime.set($event)" />
+              Device sends values only (generate time axis)
+            </label>
+            <button class="btn-primary" (click)="connectPickedSource()"
+              [disabled]="!serialSupported">Choose port…</button>
+            <button class="btn-secondary" (click)="disconnectSource()">Disconnect</button>
+          </div>
+          @if (!serialSupported) {
+            <p class="src-warn">
+              Web Serial is unavailable here. It needs Chrome or Edge served over
+              https:// or localhost.
+            </p>
+          }
+          <p class="src-hint">
+            Reads ASCII telemetry straight from a controller or USB DAQ
+            (TI C2000, STM32, Arduino) with no server at all. Expects
+            <code>time,ch1,ch2</code> lines, optionally preceded by a header row.
+          </p>
+        }
+      }
+    </div>
+
+    <!-- readout -->
+    <div class="dataplotter-info-row">
+      <p><strong>Status:</strong>
+        <span [class]="'status-badge status-' + plotterStatus()">{{ plotterStatus() }}</span>
+      </p>
+      <p><strong>Mode:</strong> {{ sourceMode() === 'static' ? 'Static (plot all)' : sourceMode() === 'stream' ? 'Live stream' : '—' }}</p>
+      <p><strong>Samples:</strong> {{ sampleCount() }}</p>
+      <p><strong>Channels:</strong> {{ plotterLegendItems.length }}</p>
+      <p class="dataplotter-status-message">{{ plotterStatusMessage() }}</p>
+    </div>
+  </section>
+
+  <!-- ===================== VIEW SETTINGS ===================== -->
+  <section class="plot-panel">
+    <h2>View Settings</h2>
+    <div class="settings-grid">
+
+      <!-- time window -->
+      <div class="settings-card">
+        <h3>Time window</h3>
+        <label class="stacked">Window (s) — 0 = auto rescale
+          <input type="number" min="0" step="0.1"
+            [ngModel]="windowSeconds()"
+            (ngModelChange)="windowSeconds.set($event); onAxisSettingChanged()" />
+        </label>
+        <div class="preset-row">
+          @for (preset of [0, 0.1, 0.5, 1, 2, 5, 10]; track preset) {
+            <button type="button" class="preset"
+              [class.active]="windowSeconds() === preset"
+              (click)="windowSeconds.set(preset); onAxisSettingChanged()">
+              {{ preset === 0 ? 'Auto' : preset + 's' }}
+            </button>
+          }
+        </div>
+        <p class="src-hint">
+          A value above 0 pins the x axis to a fixed width that slides with the
+          newest sample. 0 lets the axis keep rescaling to fit all data.
+          Static files always plot in full.
+        </p>
+      </div>
+
+      <!-- vertical scale -->
+      <div class="settings-card">
+        <h3>Vertical scale</h3>
+        <label class="check">
+          <input type="checkbox" [ngModel]="latchYAxis()"
+            (ngModelChange)="latchYAxis.set($event); onAxisSettingChanged()" />
+          Latch min/max (range only grows, never shrinks)
+        </label>
+        <label class="check">
+          <input type="checkbox" [ngModel]="lockYAxis()"
+            (ngModelChange)="lockYAxis.set($event); onAxisSettingChanged()" />
+          Lock (freeze the range where it is now)
+        </label>
+        <div class="src-row tight">
+          <label>Y min
+            <input type="number" step="any" class="narrow"
+              [ngModel]="manualYMin()"
+              (ngModelChange)="manualYMin.set($event === null || $event === '' ? null : +$event); onAxisSettingChanged()" />
+          </label>
+          <label>Y max
+            <input type="number" step="any" class="narrow"
+              [ngModel]="manualYMax()"
+              (ngModelChange)="manualYMax.set($event === null || $event === '' ? null : +$event); onAxisSettingChanged()" />
+          </label>
+          <button class="btn-secondary" (click)="clearManualY()">Clear</button>
+          <button class="btn-secondary" (click)="resetYLatch()">Re-learn</button>
+        </div>
+        <p class="src-hint">
+          Setting both Y min and Y max pins the axis to exactly those values and
+          overrides latch/lock.
+        </p>
+      </div>
+
+      <!-- size + zoom -->
+      <div class="settings-card">
+        <h3>Size &amp; zoom</h3>
+        <label class="stacked">Plot height (px)
+          <input type="number" min="200" max="2000" step="10"
+            [ngModel]="plotHeight()" (ngModelChange)="plotHeight.set($event)" />
+        </label>
+        <label class="check">
+          <input type="checkbox" [ngModel]="zoomHorizontal()"
+            (ngModelChange)="zoomHorizontal.set($event); onZoomSettingChanged()" />
+          Horizontal zoom &amp; pan (x axis)
+        </label>
+        <label class="check">
+          <input type="checkbox" [ngModel]="zoomVertical()"
+            (ngModelChange)="zoomVertical.set($event); onZoomSettingChanged()" />
+          Vertical zoom &amp; pan (y axis)
+        </label>
+        <label class="stacked">Live buffer (samples per channel)
+          <input type="number" min="100" step="500"
+            [ngModel]="maxBufferPoints()" (ngModelChange)="maxBufferPoints.set($event)" />
+        </label>
+        <p class="src-hint">
+          Unchecking an axis locks it while zooming, so you can scale time
+          without disturbing amplitude (or vice versa).
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- raw / parsed detail for static loads -->
+  @if (plotterDataLoaded() && plotterFileContent()) {
+    <details class="dataplotter-panel">
+      <summary>Raw CSV Data</summary>
+      <pre>{{ plotterFileContent() }}</pre>
+    </details>
+
+    <details class="dataplotter-panel">
+      <summary>Parsed Plotter Data</summary>
+      <pre>{{ parsedPlotterText() }}</pre>
+    </details>
+  }
+
+  <!-- ===================== PLOTTER OVERLAY WINDOW ===================== -->
+  @if (plotterVisible()) {
+    @if (plotterWindowState() === 'minimized') {
+      <div class="dataplotter-minimized-bar" (click)="restorePlotter()">
+        <span>DataPlotter — click to restore</span>
+      </div>
+    } @else {
+      <div class="dataplotter-backdrop"></div>
+    }
+
+    <div
+      class="dataplotter-overlay"
+      [class.maximized]="plotterWindowState() === 'maximized'"
+      [class.minimized]="plotterWindowState() === 'minimized'"
+      [style.width.px]="plotterWindowState() === 'maximized' ? null : plotterWidth"
+      [style.top.px]="plotterWindowState() === 'maximized' ? null : plotterTop"
+      [style.left.px]="plotterWindowState() === 'maximized' ? null : plotterLeft"
+    >
+      <!-- resize handles -->
+      <div class="resize-handle top" (mousedown)="onPlotterResizeStart($event, 'top')"></div>
+      <div class="resize-handle bottom" (mousedown)="onPlotterResizeStart($event, 'bottom')"></div>
+      <div class="resize-handle left" (mousedown)="onPlotterResizeStart($event, 'left')"></div>
+      <div class="resize-handle right" (mousedown)="onPlotterResizeStart($event, 'right')"></div>
+      <div class="resize-handle top-left" (mousedown)="onPlotterResizeStart($event, 'top-left')"></div>
+      <div class="resize-handle top-right" (mousedown)="onPlotterResizeStart($event, 'top-right')"></div>
+      <div class="resize-handle bottom-left" (mousedown)="onPlotterResizeStart($event, 'bottom-left')"></div>
+      <div class="resize-handle bottom-right" (mousedown)="onPlotterResizeStart($event, 'bottom-right')"></div>
+
+      <!-- title bar (drag area) -->
+      <div class="dataplotter-title-bar" (mousedown)="onPlotterTitleBarMouseDown($event)">
+        <span class="dataplotter-title-text">
+          DataPlotter Waveform
+          @if (sourceMode() === 'stream') {
+            <span class="live-pip" [class.on]="sourceState() === 'connected'">LIVE</span>
+          }
+        </span>
+        <div class="dataplotter-window-controls">
+          <button class="win-btn" title="Reset Zoom" (click)="resetPlotterZoom()">&#8634;</button>
+          <button class="win-btn" title="Minimize" (click)="minimizePlotter()">&#8211;</button>
+          <button class="win-btn" title="Maximize" (click)="maximizePlotter()">&#9744;</button>
+          <button class="win-btn" title="Fullscreen" (click)="fullscreenPlotter()">&#9974;</button>
+          <button class="win-btn close-btn" title="Close" (click)="closePlotter()">&#10005;</button>
+        </div>
+      </div>
+
+      <!-- CHECKLIST LEGEND — controls what stays on screen -->
+      <div class="legend-bar">
+        <div class="legend-tools">
+          <span class="legend-count">{{ visibleTraceCount() }} / {{ plotterLegendItems.length }} shown</span>
+          <button type="button" (click)="showAllTraces()">All</button>
+          <button type="button" (click)="hideAllTraces()">None</button>
+          <button type="button" (click)="invertTraceVisibility()">Invert</button>
+        </div>
+
+        <div class="dataplotter-legend-wrapper" #plotterLegendContainer>
+          @for (item of plotterLegendItems; track item.index) {
+            <span
+              class="dataplotter-legend-item"
+              [attr.data-legend-index]="item.index"
+              [class.highlighted]="highlightedTraceIndex() === item.index"
+              [class.isolated]="isolatedTraceIndex() === item.index"
+              [class.dimmed]="(isolatedTraceIndex() !== null && isolatedTraceIndex() !== item.index) || !isTraceVisible(item.index)"
+            >
+              <input
+                type="checkbox"
+                class="legend-check"
+                [checked]="isTraceVisible(item.index)"
+                (change)="toggleTraceVisible(item.index)"
+                [attr.aria-label]="'Show ' + item.label"
+              />
+              <span
+                class="legend-label"
+                (click)="onPlotterLegendSelect(item.index)"
+                (dblclick)="onPlotterLegendIsolate(item.index)"
+              >
+                <span class="dataplotter-legend-color" [style.background]="item.color"></span>
+                {{ item.label }}
+              </span>
+            </span>
+          }
+        </div>
+      </div>
+
+      <!-- plotter canvas area: height is pinned by the Plot height setting -->
+      <div class="dataplotter-canvas-body"
+        [style.height.px]="plotterWindowState() === 'maximized' ? null : plotHeight()"
+        (mousemove)="onPlotterHover()"
+        (mouseleave)="onPlotterHoverEnd()">
+        <canvas #plotterCanvas></canvas>
+      </div>
+
+      <div class="dataplotter-footer">
+        <small>
+          Checkbox = show/hide | Click label to highlight | Double-click to isolate |
+          Scroll to zoom | Shift+Drag to box-zoom | Drag to pan
+          @if (sourceMode() === 'stream' && windowSeconds() > 0) {
+            | window {{ windowSeconds() }}s
+          }
+        </small>
+      </div>
+    </div>
+  }
+</div>

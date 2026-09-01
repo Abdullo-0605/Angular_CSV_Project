@@ -1,205 +1,22 @@
-<div class="dataplotter-container" (mousemove)="onPlotterMouseMove($event)" (mouseup)="onPlotterMouseUp()">
-  <h1>Data Plotter</h1>
+<div class="app-shell">
+  <header class="app-header">
+    <h1>Data Plotter</h1>
+    <p class="app-sub">DataLogger &mdash; waveform plotting for the power electronics testbed</p>
+  </header>
 
-  <!-- ===================== LIVE CAPTURE ===================== -->
-  <section class="live-panel">
-    <div class="live-panel-header">
-      <h2>Live Capture</h2>
-      <span class="conn-badge" [class.online]="liveConnected()">
-        <span class="conn-dot"></span>
-        {{ liveConnected() ? 'Data server connected' : 'Data server offline' }}
-      </span>
-    </div>
+  <!-- ============ PRIMARY: THE PLOTTER ============ -->
+  <datalogger-dataplotter />
 
-    @if (liveError()) {
-      <div class="dataplotter-error-banner">{{ liveError() }}</div>
+  <!-- ============ SECONDARY: DEV-ONLY SIMULATOR ============ -->
+  <section class="sim-section">
+    <button type="button" class="sim-toggle" (click)="simulatorOpen.set(!simulatorOpen())">
+      <span class="sim-caret">{{ simulatorOpen() ? '▾' : '▸' }}</span>
+      Testbed Simulator
+      <span class="sim-note">development only — excluded from HMI integration</span>
+    </button>
+
+    @if (simulatorOpen()) {
+      <testbed-simulator (plotSource)="onSimulatorSource($event)" />
     }
-
-    <div class="live-grid">
-      <!-- power profile + timing -->
-      <div class="live-card">
-        <h3>Power profile &amp; timeline</h3>
-        <div class="live-field-row">
-          <label>Start (W)
-            <input type="number" min="0" max="50" step="1"
-              [ngModel]="startWatts()" (ngModelChange)="startWatts.set($event)" />
-          </label>
-          <label>End (W)
-            <input type="number" min="0" max="50" step="1"
-              [ngModel]="endWatts()" (ngModelChange)="endWatts.set($event)" />
-          </label>
-          <label>Ramp (s)
-            <input type="number" min="0" step="1"
-              [ngModel]="rampSeconds()" (ngModelChange)="rampSeconds.set($event)" />
-          </label>
-        </div>
-        <div class="live-field-row">
-          <label>Sample interval (ms)
-            <input type="number" min="10" step="10"
-              [ngModel]="intervalMs()" (ngModelChange)="intervalMs.set($event)" />
-          </label>
-          <label>Run for (s, 0 = until stopped)
-            <input type="number" min="0" step="1"
-              [ngModel]="durationSeconds()" (ngModelChange)="durationSeconds.set($event)" />
-          </label>
-        </div>
-        <div class="live-field-row">
-          <label class="full">Scheduled start (optional)
-            <input type="datetime-local"
-              [ngModel]="scheduledTime()" (ngModelChange)="scheduledTime.set($event)" />
-          </label>
-        </div>
-        <p class="live-hint">Ramps commanded power from Start &rarr; End over the Ramp time, then holds. Leave the scheduled time empty to start now.</p>
-      </div>
-
-      <!-- log selection -->
-      <div class="live-card">
-        <h3>Logs to capture <span class="sel-count">{{ selectedLogs().length }} selected</span></h3>
-        <div class="log-toolbar">
-          <input type="text" class="log-filter" placeholder="Filter logs…"
-            [ngModel]="logFilter()" (ngModelChange)="logFilter.set($event)" />
-          <button type="button" (click)="selectAllLogs()">All</button>
-          <button type="button" (click)="clearSelectedLogs()">Clear</button>
-        </div>
-        <div class="log-list">
-          @for (name of filteredLogs(); track name) {
-            <label class="log-item" [class.selected]="isLogSelected(name)">
-              <input type="checkbox" [checked]="isLogSelected(name)" (change)="toggleLog(name)" />
-              <span class="log-name">{{ name }}</span>
-              <button type="button" class="log-only" title="Capture only this log"
-                (click)="selectOnlyLog(name); $event.preventDefault()">only</button>
-            </label>
-          } @empty {
-            <p class="live-hint">No logs match the filter.</p>
-          }
-        </div>
-        <p class="live-hint">Check one log to capture &amp; build a single trace in real time.</p>
-      </div>
-    </div>
-
-    <!-- action bar + live status -->
-    <div class="live-actions">
-      <button class="btn-live btn-start" (click)="startLive()" [disabled]="isLiveRunning()">▶ Start</button>
-      <button class="btn-live btn-stop" (click)="stopLive()" [disabled]="!isLiveRunning()">■ Stop</button>
-      <button class="btn-live btn-reset" (click)="resetLive()">Reset</button>
-      <button class="btn-live btn-download" (click)="downloadLive()">Download CSV</button>
-
-      @if (liveStatus(); as s) {
-        <div class="live-readout">
-          <span class="live-state" [attr.data-state]="s.status">{{ s.status }}</span>
-          @if (scheduledCountdown() !== null) {
-            <span>starts in {{ scheduledCountdown() }}s</span>
-          }
-          <span>{{ s.elapsed }} s</span>
-          <span>{{ s.rowCount }} rows</span>
-        </div>
-      }
-    </div>
   </section>
-
-  <!-- ===================== STATIC FILE LOAD ===================== -->
-  <h2 class="section-heading">Load CSV File</h2>
-  <div class="dataplotter-controls">
-    <input type="file" accept=".csv" (change)="onPlotterFileSelected($event)" />
-    <button class="btn-display-plotter" (click)="displayPlotterWaveform()">Display</button>
-  </div>
-
-  <div class="dataplotter-info-row">
-    <p><strong>Status:</strong>
-      <span [class]="'status-badge status-' + plotterStatus()">{{ plotterStatus() }}</span>
-    </p>
-    <p><strong>File:</strong> {{ plotterFileName() || 'None' }}</p>
-    <p class="dataplotter-status-message">{{ plotterStatusMessage() }}</p>
-  </div>
-
-  @if (plotterErrorMessage()) {
-    <div class="dataplotter-error-banner">{{ plotterErrorMessage() }}</div>
-  }
-
-  @if (plotterDataLoaded()) {
-    <details class="dataplotter-panel">
-      <summary>Raw CSV Data</summary>
-      <pre>{{ plotterFileContent() }}</pre>
-    </details>
-
-    <details class="dataplotter-panel">
-      <summary>Parsed Plotter Data</summary>
-      <pre>{{ parsedPlotterText() }}</pre>
-    </details>
-  }
-
-  <!-- DATAPLOTTER OVERLAY WINDOW -->
-  @if (plotterVisible()) {
-    <!-- when minimized show a taskbar item, otherwise dim the background.
-         The overlay itself stays mounted in both cases (just hidden via CSS
-         when minimized) so the Chart.js canvas is never destroyed/recreated. -->
-    @if (plotterWindowState() === 'minimized') {
-      <div class="dataplotter-minimized-bar" (click)="restorePlotter()">
-        <span>DataPlotter — click to restore</span>
-      </div>
-    } @else {
-      <div class="dataplotter-backdrop"></div>
-    }
-
-    <div
-      class="dataplotter-overlay"
-      [class.maximized]="plotterWindowState() === 'maximized'"
-      [class.minimized]="plotterWindowState() === 'minimized'"
-      [style.width.px]="plotterWindowState() === 'maximized' ? null : plotterWidth"
-      [style.height.px]="plotterWindowState() === 'maximized' ? null : plotterHeight"
-      [style.top.px]="plotterWindowState() === 'maximized' ? null : plotterTop"
-      [style.left.px]="plotterWindowState() === 'maximized' ? null : plotterLeft"
-    >
-        <!-- resize handles -->
-        <div class="resize-handle top" (mousedown)="onPlotterResizeStart($event, 'top')"></div>
-        <div class="resize-handle bottom" (mousedown)="onPlotterResizeStart($event, 'bottom')"></div>
-        <div class="resize-handle left" (mousedown)="onPlotterResizeStart($event, 'left')"></div>
-        <div class="resize-handle right" (mousedown)="onPlotterResizeStart($event, 'right')"></div>
-        <div class="resize-handle top-left" (mousedown)="onPlotterResizeStart($event, 'top-left')"></div>
-        <div class="resize-handle top-right" (mousedown)="onPlotterResizeStart($event, 'top-right')"></div>
-        <div class="resize-handle bottom-left" (mousedown)="onPlotterResizeStart($event, 'bottom-left')"></div>
-        <div class="resize-handle bottom-right" (mousedown)="onPlotterResizeStart($event, 'bottom-right')"></div>
-
-        <!-- title bar (drag area) -->
-        <div class="dataplotter-title-bar" (mousedown)="onPlotterTitleBarMouseDown($event)">
-          <span class="dataplotter-title-text">DataPlotter Waveform</span>
-          <div class="dataplotter-window-controls">
-            <button class="win-btn" title="Reset Zoom" (click)="resetPlotterZoom()">&#8634;</button>
-            <button class="win-btn" title="Minimize" (click)="minimizePlotter()">&#8211;</button>
-            <button class="win-btn" title="Maximize" (click)="maximizePlotter()">&#9744;</button>
-            <button class="win-btn" title="Fullscreen" (click)="fullscreenPlotter()">&#9974;</button>
-            <button class="win-btn close-btn" title="Close" (click)="closePlotter()">&#10005;</button>
-          </div>
-        </div>
-
-        <!-- custom plotter legend (scrollable, 2 rows) -->
-        <div class="dataplotter-legend-wrapper" #plotterLegendContainer>
-          @for (item of plotterLegendItems; track item.index) {
-            <span
-              class="dataplotter-legend-item"
-              [attr.data-legend-index]="item.index"
-              [class.highlighted]="highlightedTraceIndex() === item.index"
-              [class.isolated]="isolatedTraceIndex() === item.index"
-              [class.dimmed]="isolatedTraceIndex() !== null && isolatedTraceIndex() !== item.index"
-              (click)="onPlotterLegendSelect(item.index)"
-              (dblclick)="onPlotterLegendIsolate(item.index)"
-            >
-              <span class="dataplotter-legend-color" [style.background]="item.color"></span>
-              {{ item.label }}
-            </span>
-          }
-        </div>
-
-        <!-- plotter canvas area -->
-        <div class="dataplotter-canvas-body"
-          (mousemove)="onPlotterHover()"
-          (mouseleave)="onPlotterHoverEnd()">
-          <canvas #plotterCanvas></canvas>
-        </div>
-
-        <div class="dataplotter-footer">
-          <small>Scroll to zoom | Shift+Drag to box-zoom | Drag to pan | Click legend to highlight | Double-click legend to isolate</small>
-        </div>
-    </div>
-  }
 </div>

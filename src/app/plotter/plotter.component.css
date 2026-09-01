@@ -1,0 +1,692 @@
+/* --- LAYOUT --- */
+.dataplotter-container {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* --- PANELS --- */
+.plot-panel {
+  border: 1px solid #dbe2ea;
+  border-radius: 12px;
+  background: #f8fafc;
+  padding: 16px;
+  margin-bottom: 18px;
+}
+
+.plot-panel > h2 {
+  margin: 0 0 12px;
+  font-size: 18px;
+}
+
+.plot-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.plot-panel-header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+/* --- CONNECTION BADGE --- */
+.conn-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: #6b7280;
+  background: #e5e7eb;
+  max-width: 46ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conn-badge[data-state='connected'] {
+  color: #065f46;
+  background: #d1fae5;
+}
+
+.conn-badge[data-state='connecting'] {
+  color: #92400e;
+  background: #fef3c7;
+}
+
+.conn-badge[data-state='error'] {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.conn-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+/* --- SOURCE TABS --- */
+.src-tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 12px;
+}
+
+.src-tab {
+  border: none;
+  background: transparent;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  border-radius: 8px 8px 0 0;
+  border-bottom: 2px solid transparent;
+}
+
+.src-tab:hover {
+  background: #eef2f7;
+}
+
+.src-tab.active {
+  color: #2563eb;
+  border-bottom-color: #2563eb;
+  background: #fff;
+}
+
+.src-body {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.src-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.src-row.tight {
+  margin-top: 10px;
+}
+
+.src-row label,
+.settings-card label.stacked {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.src-row label.grow {
+  flex: 1;
+  min-width: 240px;
+}
+
+.src-row input[type='text'],
+.src-row input[type='number'],
+.settings-card input[type='number'] {
+  padding: 7px 9px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.src-row input.narrow,
+.settings-card input.narrow {
+  width: 110px;
+}
+
+.src-row input:focus,
+.settings-card input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+label.check {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  margin-bottom: 8px;
+}
+
+label.check input {
+  width: auto;
+  cursor: pointer;
+}
+
+.src-hint {
+  font-size: 11px;
+  color: #94a3b8;
+  margin: 10px 0 0;
+  line-height: 1.5;
+}
+
+.src-hint code {
+  background: #f1f5f9;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 10px;
+  color: #475569;
+}
+
+.src-warn {
+  font-size: 12px;
+  color: #92400e;
+  background: #fef3c7;
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin: 10px 0 0;
+}
+
+/* --- BUTTONS --- */
+.btn-primary,
+.btn-secondary {
+  padding: 8px 18px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, filter 0.15s;
+  white-space: nowrap;
+}
+
+.btn-primary {
+  background: #2563eb;
+  color: #fff;
+  border: none;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: #fff;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
+.btn-secondary:hover {
+  background: #f1f5f9;
+}
+
+/* --- SETTINGS GRID --- */
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.settings-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.settings-card h3 {
+  margin: 0 0 12px;
+  font-size: 14px;
+  color: #334155;
+}
+
+.settings-card label.stacked {
+  margin-bottom: 10px;
+}
+
+.preset-row {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.preset {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.preset:hover {
+  background: #f1f5f9;
+}
+
+.preset.active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+}
+
+/* --- STATUS ROW --- */
+.dataplotter-info-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.dataplotter-info-row p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.status-N\/A {
+  background: #e5e7eb;
+  color: #6b7280;
+}
+
+.status-Ready {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-Error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.dataplotter-status-message {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+/* --- ERROR BANNER --- */
+.dataplotter-error-banner {
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  color: #991b1b;
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-weight: 500;
+}
+
+/* --- DETAIL PANELS --- */
+.dataplotter-panel {
+  margin-top: 12px;
+  border: 1px solid #ffd8d8;
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: #ffe9e9;
+}
+
+.dataplotter-panel summary {
+  cursor: pointer;
+  font-weight: 600;
+  list-style: none;
+}
+
+.dataplotter-panel summary::-webkit-details-marker {
+  display: none;
+}
+
+.dataplotter-panel summary::before {
+  content: "\25B8 ";
+  display: inline-block;
+  transition: transform 0.15s ease;
+}
+
+.dataplotter-panel[open] summary::before {
+  content: "\25BE ";
+}
+
+.dataplotter-panel pre {
+  margin-top: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 320px;
+  overflow: auto;
+}
+
+/* --- BACKDROP --- */
+.dataplotter-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 999;
+}
+
+/* --- MINIMIZED BAR --- */
+.dataplotter-minimized-bar {
+  position: fixed;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1e293b;
+  color: #fff;
+  padding: 8px 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  z-index: 1001;
+  font-size: 13px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.dataplotter-minimized-bar:hover {
+  background: #334155;
+}
+
+/* --- OVERLAY WINDOW --- */
+.dataplotter-overlay {
+  position: fixed;
+  z-index: 1000;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* minimized: keep mounted (canvas survives) but hidden */
+.dataplotter-overlay.minimized {
+  display: none;
+}
+
+.dataplotter-overlay.maximized {
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  border-radius: 0;
+}
+
+/* --- TITLE BAR --- */
+.dataplotter-title-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #1e293b;
+  color: #fff;
+  padding: 6px 12px;
+  cursor: grab;
+  flex-shrink: 0;
+}
+
+.dataplotter-title-bar:active {
+  cursor: grabbing;
+}
+
+.dataplotter-title-text {
+  font-size: 13px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.live-pip {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #475569;
+  color: #cbd5e1;
+}
+
+.live-pip.on {
+  background: #dc2626;
+  color: #fff;
+  animation: pip 1.4s ease-in-out infinite;
+}
+
+@keyframes pip {
+  50% { opacity: 0.45; }
+}
+
+.dataplotter-window-controls {
+  display: flex;
+  gap: 4px;
+}
+
+.win-btn {
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  color: #fff;
+  width: 28px;
+  height: 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.1s;
+}
+
+.win-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.close-btn:hover {
+  background: #ef4444;
+}
+
+/* --- CHECKLIST LEGEND --- */
+.legend-bar {
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+  background: #fbfdff;
+}
+
+.legend-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px 0;
+}
+
+.legend-count {
+  font-size: 11px;
+  font-weight: 700;
+  color: #2563eb;
+  background: #eff6ff;
+  padding: 2px 8px;
+  border-radius: 999px;
+  margin-right: auto;
+}
+
+.legend-tools button {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.legend-tools button:hover {
+  background: #f1f5f9;
+}
+
+.dataplotter-legend-wrapper {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+  height: 56px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  gap: 4px 10px;
+  padding: 6px 12px;
+  align-content: flex-start;
+}
+
+.dataplotter-legend-wrapper::-webkit-scrollbar {
+  height: 4px;
+}
+
+.dataplotter-legend-wrapper::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.dataplotter-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  transition: background 0.1s;
+}
+
+.dataplotter-legend-item:hover {
+  background: #f1f5f9;
+}
+
+.legend-check {
+  cursor: pointer;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.legend-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.dataplotter-legend-item.highlighted {
+  background: #dbeafe;
+  font-weight: 700;
+}
+
+.dataplotter-legend-item.isolated {
+  background: #2563eb;
+  color: #fff;
+  font-weight: 700;
+}
+
+.dataplotter-legend-item.dimmed .legend-label {
+  opacity: 0.35;
+}
+
+.dataplotter-legend-color {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* --- CANVAS BODY --- */
+/* Height comes from the Plot height setting; `flex: 1 1 auto` lets it fill the
+   window when maximized (where the explicit height is dropped). */
+.dataplotter-canvas-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 8px;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.dataplotter-canvas-body canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.dataplotter-footer {
+  text-align: center;
+  padding: 4px 8px;
+  background: #f8fafc;
+  border-top: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
+.dataplotter-footer small {
+  font-size: 11px;
+  color: #64748b;
+}
+
+/* --- RESIZE HANDLES --- */
+.resize-handle {
+  position: absolute;
+  z-index: 10;
+}
+
+.resize-handle.top {
+  top: 0; left: 6px; right: 6px; height: 5px;
+  cursor: n-resize;
+}
+
+.resize-handle.bottom {
+  bottom: 0; left: 6px; right: 6px; height: 5px;
+  cursor: s-resize;
+}
+
+.resize-handle.left {
+  left: 0; top: 6px; bottom: 6px; width: 5px;
+  cursor: w-resize;
+}
+
+.resize-handle.right {
+  right: 0; top: 6px; bottom: 6px; width: 5px;
+  cursor: e-resize;
+}
+
+.resize-handle.top-left {
+  top: 0; left: 0; width: 10px; height: 10px;
+  cursor: nw-resize;
+}
+
+.resize-handle.top-right {
+  top: 0; right: 0; width: 10px; height: 10px;
+  cursor: ne-resize;
+}
+
+.resize-handle.bottom-left {
+  bottom: 0; left: 0; width: 10px; height: 10px;
+  cursor: sw-resize;
+}
+
+.resize-handle.bottom-right {
+  bottom: 0; right: 0; width: 10px; height: 10px;
+  cursor: se-resize;
+}
