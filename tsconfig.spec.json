@@ -4,6 +4,10 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "./out-tsc/spec",
+    /* Explicit so the output layout does not shift when spec files are added at
+       a different depth (TypeScript would otherwise infer it from the common
+       source directory, currently ./src/app). */
+    "rootDir": "./src",
     "types": [
       "vitest/globals",
       "node"
