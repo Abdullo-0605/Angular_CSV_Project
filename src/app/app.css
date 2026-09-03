@@ -1,7 +1,7 @@
+/* Full width rather than a centred column, so the right-hand plot dock has
+   somewhere to sit without overlapping content. */
 .app-shell {
   padding: 20px;
-  max-width: 1400px;
-  margin: 0 auto;
   min-height: 100vh;
   box-sizing: border-box;
 }

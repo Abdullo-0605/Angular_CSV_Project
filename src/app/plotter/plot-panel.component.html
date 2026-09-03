@@ -1,0 +1,160 @@
+<!-- resize handles: docked panels only resize vertically; floating get all edges -->
+@if (windowState() !== 'maximized') {
+  <div class="resize-handle bottom" (mousedown)="onResizeStart($event, 'bottom')"></div>
+  @if (floating()) {
+    <div class="resize-handle top" (mousedown)="onResizeStart($event, 'top')"></div>
+    <div class="resize-handle left" (mousedown)="onResizeStart($event, 'left')"></div>
+    <div class="resize-handle right" (mousedown)="onResizeStart($event, 'right')"></div>
+    <div class="resize-handle bottom-left" (mousedown)="onResizeStart($event, 'bottom-left')"></div>
+    <div class="resize-handle bottom-right" (mousedown)="onResizeStart($event, 'bottom-right')"></div>
+  }
+}
+
+<!-- title bar: dragging tears the panel out of the dock -->
+<div class="panel-title-bar" (mousedown)="onTitleBarMouseDown($event)">
+  <span class="panel-title">
+    <span class="panel-name">{{ title() }}</span>
+    @if (sourceMode() === 'stream') {
+      <span class="live-pip" [class.on]="sourceState() === 'connected'">LIVE</span>
+    } @else if (sourceMode() === 'static') {
+      <span class="static-pip">FILE</span>
+    }
+    <span class="panel-meta">{{ sampleCount() }} pts</span>
+  </span>
+
+  <div class="panel-controls">
+    <button class="win-btn" title="View settings" [class.on]="settingsOpen()"
+      (click)="settingsOpen.set(!settingsOpen())" (mousedown)="$event.stopPropagation()">&#9881;</button>
+    <button class="win-btn" title="Toggle legend" [class.on]="legendOpen()"
+      (click)="legendOpen.set(!legendOpen())" (mousedown)="$event.stopPropagation()">&#9776;</button>
+    <button class="win-btn" title="Reset zoom"
+      (click)="resetZoom()" (mousedown)="$event.stopPropagation()">&#8634;</button>
+    @if (floating()) {
+      <button class="win-btn" title="Dock to right"
+        (click)="dock()" (mousedown)="$event.stopPropagation()">&#8677;</button>
+    } @else {
+      <button class="win-btn" title="Pop out"
+        (click)="popOut()" (mousedown)="$event.stopPropagation()">&#8599;</button>
+    }
+    <button class="win-btn" title="Collapse"
+      (click)="toggleMinimize()" (mousedown)="$event.stopPropagation()">&#8211;</button>
+    <button class="win-btn" title="Maximize"
+      (click)="toggleMaximize()" (mousedown)="$event.stopPropagation()">&#9744;</button>
+    <button class="win-btn" title="Fullscreen"
+      (click)="toggleFullscreen()" (mousedown)="$event.stopPropagation()">&#9974;</button>
+    <button class="win-btn close-btn" title="Close"
+      (click)="close()" (mousedown)="$event.stopPropagation()">&#10005;</button>
+  </div>
+</div>
+
+<!-- everything below collapses when minimized -->
+@if (windowState() !== 'minimized') {
+
+  @if (errorMessage()) {
+    <div class="panel-error">{{ errorMessage() }}</div>
+  }
+
+  <!-- PER-PLOT SETTINGS TRAY -->
+  @if (settingsOpen()) {
+    <div class="panel-settings">
+      <div class="set-row">
+        <span class="set-label">Window</span>
+        @for (preset of [0, 0.1, 0.5, 1, 2, 5, 10]; track preset) {
+          <button type="button" class="chip" [class.active]="windowSeconds() === preset"
+            (click)="setWindow(preset)">{{ preset === 0 ? 'Auto' : preset + 's' }}</button>
+        }
+        <input type="number" min="0" step="0.1" class="num" title="Window seconds (0 = auto)"
+          [ngModel]="windowSeconds()" (ngModelChange)="windowSeconds.set(+$event); onAxisSettingChanged()" />
+        @if (isStatic()) {
+          <span class="set-note">static file — plots all</span>
+        }
+      </div>
+
+      <div class="set-row">
+        <span class="set-label">Y axis</span>
+        <label class="chk">
+          <input type="checkbox" [ngModel]="latchYAxis()"
+            (ngModelChange)="latchYAxis.set($event); onAxisSettingChanged()" /> Latch
+        </label>
+        <label class="chk">
+          <input type="checkbox" [ngModel]="lockYAxis()"
+            (ngModelChange)="lockYAxis.set($event); onAxisSettingChanged()" /> Lock
+        </label>
+        <input type="number" step="any" class="num" placeholder="min"
+          [ngModel]="manualYMin()"
+          (ngModelChange)="manualYMin.set($event === null || $event === '' ? null : +$event); onAxisSettingChanged()" />
+        <input type="number" step="any" class="num" placeholder="max"
+          [ngModel]="manualYMax()"
+          (ngModelChange)="manualYMax.set($event === null || $event === '' ? null : +$event); onAxisSettingChanged()" />
+        <button type="button" class="chip" (click)="clearManualY()">Clear</button>
+        <button type="button" class="chip" (click)="resetYLatch()">Re-learn</button>
+      </div>
+
+      <div class="set-row">
+        <span class="set-label">Zoom</span>
+        <label class="chk">
+          <input type="checkbox" [ngModel]="zoomHorizontal()"
+            (ngModelChange)="zoomHorizontal.set($event); onZoomSettingChanged()" /> Horizontal
+        </label>
+        <label class="chk">
+          <input type="checkbox" [ngModel]="zoomVertical()"
+            (ngModelChange)="zoomVertical.set($event); onZoomSettingChanged()" /> Vertical
+        </label>
+        <span class="set-label">Height</span>
+        <input type="number" min="120" max="2000" step="10" class="num"
+          [ngModel]="plotHeight()" (ngModelChange)="plotHeight.set(+$event); onPlotHeightChanged()" />
+      </div>
+    </div>
+  }
+
+  <!-- CHECKLIST LEGEND -->
+  @if (legendOpen() && legendItems.length) {
+    <div class="legend-bar">
+      <div class="legend-tools">
+        <span class="legend-count">{{ visibleTraceCount() }}/{{ legendItems.length }}</span>
+        <button type="button" (click)="showAllTraces()">All</button>
+        <button type="button" (click)="hideAllTraces()">None</button>
+        <button type="button" (click)="invertTraceVisibility()">Invert</button>
+      </div>
+
+      <div class="legend-list" #legendContainer>
+        @for (item of legendItems; track item.index) {
+          <span
+            class="legend-item"
+            [attr.data-legend-index]="item.index"
+            [class.highlighted]="highlightedTraceIndex() === item.index"
+            [class.isolated]="isolatedTraceIndex() === item.index"
+            [class.dimmed]="(isolatedTraceIndex() !== null && isolatedTraceIndex() !== item.index) || !isTraceVisible(item.index)"
+          >
+            <input
+              type="checkbox"
+              class="legend-check"
+              [checked]="isTraceVisible(item.index)"
+              (change)="toggleTraceVisible(item.index)"
+              [attr.aria-label]="'Show ' + item.label"
+            />
+            <span class="legend-label"
+              (click)="onLegendSelect(item.index)"
+              (dblclick)="onLegendIsolate(item.index)">
+              <span class="legend-color" [style.background]="item.color"></span>
+              {{ item.label }}
+            </span>
+          </span>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- CANVAS: height is pinned by the per-plot Height setting -->
+  <div class="canvas-body"
+    [style.height.px]="windowState() === 'maximized' ? null : plotHeight()"
+    (mousemove)="onHover()"
+    (mouseleave)="onHoverEnd()">
+    @if (!dataLoaded()) {
+      <div class="awaiting">
+        {{ sourceState() === 'error' ? 'Source error' : 'Waiting for data…' }}
+      </div>
+    }
+    <canvas #plotCanvas></canvas>
+  </div>
+}
